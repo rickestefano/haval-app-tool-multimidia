@@ -1,0 +1,118 @@
+package br.com.redesurftank.havalshisuku.Managers
+
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.icu.util.Calendar
+import br.com.redesurftank.App
+import br.com.redesurftank.havalshisuku.BroadcastReceivers.AutoBrightnessReceiver
+import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.Services.ServiceManager
+
+class AutoBrightnessManager private constructor() {
+    companion object {
+        @Volatile
+        private var INSTANCE: AutoBrightnessManager? = null
+        fun getInstance(): AutoBrightnessManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AutoBrightnessManager().also { INSTANCE = it }
+            }
+        }
+    }
+
+    private val prefs = App.getContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    private val alarmManager = App.getContext().getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+    fun setEnabled(enabled: Boolean) {
+        if (enabled) {
+            updateSchedule()
+        } else {
+            cancelSchedules()
+        }
+    }
+
+    fun updateSchedule() {
+        cancelSchedules()
+        if (isNightTime()) {
+            adjustBrightnessForNight()
+        } else {
+            adjustBrightnessForDay()
+        }
+        scheduleNextStart()
+        scheduleNextEnd()
+    }
+
+    private fun isNightTime(): Boolean {
+        val now = Calendar.getInstance()
+        val currentTime = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val startHour = prefs.getInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, 20)
+        val startMin = prefs.getInt(SharedPreferencesKeys.NIGHT_START_MINUTE.key, 0)
+        val startTime = startHour * 60 + startMin
+        val endHour = prefs.getInt(SharedPreferencesKeys.NIGHT_END_HOUR.key, 6)
+        val endMin = prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)
+        val endTime = endHour * 60 + endMin
+        return if (startTime < endTime) {
+            currentTime >= startTime && currentTime < endTime
+        } else {
+            currentTime >= startTime || currentTime < endTime
+        }
+    }
+
+    fun adjustBrightnessForNight() {
+        ServiceManager.getInstance().executeWithServicesRunning {
+            ServiceManager.getInstance().updateData("sys.settings.display.brightness_level", "1");
+            ServiceManager.getInstance().updateData("car.ipk_setting.brightness_config", "1");
+        };
+    }
+
+    fun adjustBrightnessForDay() {
+        ServiceManager.getInstance().executeWithServicesRunning {
+            ServiceManager.getInstance().updateData("sys.settings.display.brightness_level", "10");
+            ServiceManager.getInstance().updateData("car.ipk_setting.brightness_config", "10");
+        };
+    }
+
+    private fun scheduleNextStart() {
+        val calendar = Calendar.getInstance()
+        val startHour = prefs.getInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, 20)
+        val startMin = prefs.getInt(SharedPreferencesKeys.NIGHT_START_MINUTE.key, 0)
+        calendar.set(Calendar.HOUR_OF_DAY, startHour)
+        calendar.set(Calendar.MINUTE, startMin)
+        calendar.set(Calendar.SECOND, 0)
+        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        val intent = Intent(App.getContext(), AutoBrightnessReceiver::class.java).apply {
+            putExtra("isNight", true)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(App.getContext(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
+    }
+
+    private fun scheduleNextEnd() {
+        val calendar = Calendar.getInstance()
+        val endHour = prefs.getInt(SharedPreferencesKeys.NIGHT_END_HOUR.key, 6)
+        val endMin = prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)
+        calendar.set(Calendar.HOUR_OF_DAY, endHour)
+        calendar.set(Calendar.MINUTE, endMin)
+        calendar.set(Calendar.SECOND, 0)
+        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        val intent = Intent(App.getContext(), AutoBrightnessReceiver::class.java).apply {
+            putExtra("isNight", false)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(App.getContext(), 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
+    }
+
+    private fun cancelSchedules() {
+        val intentStart = Intent(App.getContext(), AutoBrightnessReceiver::class.java)
+        val pendingStart = PendingIntent.getBroadcast(App.getContext(), 0, intentStart, PendingIntent.FLAG_IMMUTABLE)
+        alarmManager.cancel(pendingStart)
+        val intentEnd = Intent(App.getContext(), AutoBrightnessReceiver::class.java)
+        val pendingEnd = PendingIntent.getBroadcast(App.getContext(), 1, intentEnd, PendingIntent.FLAG_IMMUTABLE)
+        alarmManager.cancel(pendingEnd)
+    }
+}

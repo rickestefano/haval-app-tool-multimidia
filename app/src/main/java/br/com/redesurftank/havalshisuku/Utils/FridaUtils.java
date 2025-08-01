@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.Models.CommandListener;
 import br.com.redesurftank.havalshisuku.R;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;
@@ -19,7 +20,7 @@ public class FridaUtils {
     private static final String SCRIPT_DIR = "/data/local/tmp/";
 
     public enum ScriptProcess {
-        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.intelligentvehiclecontrol", R.raw.com_beantechs_intelligentvehiclecontrol, true),
+        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, true),
         ;// Add more processes as needed
 
         private final String process;
@@ -62,7 +63,8 @@ public class FridaUtils {
     public static boolean ensureFridaServerRunning() {
         IShizukuService shizukuService = IShizukuService.Stub.asInterface(Shizuku.getBinder());
         try {
-            extractFridaFiles();
+            if (!extractFridaFiles())
+                return false;
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_SERVER_PATH}, null, null).waitFor();
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_INJECTOR_PATH}, null, null).waitFor();
             var isRunning = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
@@ -81,13 +83,29 @@ public class FridaUtils {
     }
 
     public static boolean injectScript(String scriptPath, String targetProcess) {
+        Log.w(TAG, "Injecting Frida script: " + scriptPath + " into process: " + targetProcess);
         String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
         if (pid.isEmpty()) {
             Log.e(TAG, "Target process not found: " + targetProcess);
             return false;
         }
-        String result = ShizukuUtils.runCommandAndWaitForString(new String[]{FRIDA_INJECTOR_PATH, "-p", pid, "-s", scriptPath}, "Script injected");
-        Log.w(TAG, "Frida script injection result: " + result);
+        Log.w(TAG, "Injecting Frida script: " + scriptPath + " into PID: " + pid);
+        ShizukuUtils.runCommandOnBackground(new String[]{FRIDA_INJECTOR_PATH, "-p", pid, "-s", scriptPath}, new CommandListener() {
+            @Override
+            public void onStdout(String line) {
+                Log.w(TAG, "[Target: " + targetProcess + "] Frida script output: " + line);
+            }
+
+            @Override
+            public void onStderr(String line) {
+                Log.e(TAG, "[Target: " + targetProcess + "] Frida script error: " + line);
+            }
+
+            @Override
+            public void onFinished(int exitCode) {
+                Log.w(TAG, "[Target: " + targetProcess + "] Frida script finished with exit code: " + exitCode);
+            }
+        });
         return true;
     }
 
@@ -132,7 +150,7 @@ public class FridaUtils {
         return true;
     }
 
-    public static void extractFridaFiles() {
+    public static boolean extractFridaFiles() {
         try {
             String destDir = App.getContext().getCacheDir().getAbsolutePath();
             InputStream in = App.getContext().getResources().openRawResource(R.raw.fridaserver);
@@ -159,8 +177,11 @@ public class FridaUtils {
             out.flush();
             out.close();
             ShizukuUtils.runCommandAndGetOutput(new String[]{"cp", outFile.getAbsolutePath(), FRIDA_INJECTOR_PATH});
+            return true;
         } catch (IOException e) {
             Log.e(TAG, "Error extracting Frida files", e);
         }
+
+        return false;
     }
 }

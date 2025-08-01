@@ -55,7 +55,7 @@ public class ShizukuUtils {
             if (process != null) {
                 try {
                     process.destroy();
-                } catch (RemoteException e) {
+                } catch (Exception e) {
                     // ignore
                 }
             }
@@ -133,7 +133,7 @@ public class ShizukuUtils {
                 } finally {
                     try {
                         finalProcess.destroy();
-                    } catch (RemoteException ignored) {
+                    } catch (Exception ignored) {
                     }
                     synchronized (lock) {
                         if (!found[0]) {
@@ -163,7 +163,7 @@ public class ShizukuUtils {
             if (process != null) {
                 try {
                     process.destroy();
-                } catch (RemoteException ignored) {
+                } catch (Exception ignored) {
                 }
             }
         }
@@ -248,7 +248,7 @@ public class ShizukuUtils {
                 } finally {
                     try {
                         finalProcess.destroy();
-                    } catch (RemoteException ignored) {
+                    } catch (Exception ignored) {
                     }
                 }
             }).start();

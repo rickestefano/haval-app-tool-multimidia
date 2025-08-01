@@ -63,7 +63,7 @@ public class TermuxUtils {
             if (process != null) {
                 try {
                     process.destroy();
-                } catch (RemoteException e) {
+                } catch (Exception e) {
                     // ignore
                 }
             }
@@ -156,7 +156,7 @@ public class TermuxUtils {
                 } finally {
                     try {
                         finalProcess.destroy();
-                    } catch (RemoteException ignored) {}
+                    } catch (Exception ignored) {}
                 }
             }).start();
 
@@ -249,7 +249,7 @@ public class TermuxUtils {
                 } finally {
                     try {
                         finalProcess.destroy();
-                    } catch (RemoteException ignored) {}
+                    } catch (Exception ignored) {}
                 }
             }).start();
 

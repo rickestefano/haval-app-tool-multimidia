@@ -23,7 +23,7 @@ import br.com.redesurftank.havalshisuku.Utils.IPTablesUtils;
 import br.com.redesurftank.havalshisuku.Utils.TelnetClientWrapper;
 import rikka.shizuku.Shizuku;
 
-public class ForegroundService extends Service {
+public class ForegroundService extends Service implements Shizuku.OnBinderDeadListener {
 
     private static final String TAG = "ForegroundService";
     private static final String CHANNEL_ID = "ForegroundServiceChannel";
@@ -44,7 +44,7 @@ public class ForegroundService extends Service {
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public synchronized int onStartCommand(Intent intent, int flags, int startId) {
         if (isServiceRunning) {
             Log.w(TAG, "Service is already running, skipping start.");
             return START_STICKY; // Retorna imediatamente se o serviço já estiver rodando
@@ -65,20 +65,20 @@ public class ForegroundService extends Service {
                     telnetClient.connect("127.0.0.1", 23);
                     String findCommand = "find /data/app -name libshizuku.so";
                     String filePath = telnetClient.executeCommand(findCommand);
+
                     if (filePath.isEmpty()) {
                         throw new RuntimeException("libshizuku.so not found");
                     }
+
                     Log.w(TAG, "libshizuku.so found at: " + filePath);
+
                     String executeCommand = filePath;
                     Log.w(TAG, "Executing command: " + executeCommand);
                     String result = telnetClient.executeCommand(executeCommand);
                     Log.w(TAG, "Command executed successfully: " + result);
+
                     telnetClient.disconnect();
-                    Shizuku.addBinderReceivedListener(() -> {
-                        Log.w(TAG, "Shizuku binder received");
-                        isShizukuInitialized = true;
-                        checkService();
-                    });
+                    Shizuku.addBinderReceivedListenerSticky(this::shizukuBinderReceived);
                     break;
                 } catch (Exception e) {
                     Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
@@ -89,11 +89,16 @@ public class ForegroundService extends Service {
                     }
                 }
             }
-
-            checkService();
         });
 
         return START_STICKY; // Garante que o serviço seja reiniciado se for morto
+    }
+
+    private synchronized void shizukuBinderReceived() {
+        Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
+        Log.w(TAG, "Shizuku binder received");
+        isShizukuInitialized = true;
+        checkService();
     }
 
     @Override
@@ -169,10 +174,8 @@ public class ForegroundService extends Service {
         IPTablesUtils.unlockOutputAll();
         boolean initSuccess = ServiceManager.getInstance().initializeServices(getApplicationContext());
         if (!initSuccess) {
-            ServiceManager.CleanInstance();
             Log.e(TAG, "Service initialization failed, restarting...");
-            stopSelf();
-            getApplicationContext().startForegroundService(new Intent(getApplicationContext(), ForegroundService.class));
+            restart();
             return;
         }
 
@@ -186,8 +189,7 @@ public class ForegroundService extends Service {
                     // service already running bug intelligentvehiclecontrol restarted
                     // restart self
                     Log.w(TAG, "Received com.beantechs.intelligentvehiclecontrol.INIT_COMPLETED after service started, restarting service...");
-                    stopSelf();
-                    context.startForegroundService(new Intent(context, ForegroundService.class));
+                    restart();
                     return;
                 }
                 checkService();
@@ -208,7 +210,26 @@ public class ForegroundService extends Service {
         if (handlerThread != null) {
             handlerThread.quitSafely();
         }
+        isServiceRunning = false;
+        Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
+        Shizuku.removeBinderDeadListener(this);
+        Log.w(TAG, "Service is stopping");
+        ServiceManager.CleanInstance();
         super.onDestroy();
         Log.w(TAG, "Service destroyed");
+    }
+
+    @Override
+    public void onBinderDead() {
+        Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
+        Shizuku.removeBinderDeadListener(this);
+        isShizukuInitialized = false;
+        isServiceRunning = false;
+        Log.w(TAG, "Shizuku binder is dead, stopping service");
+        restart();
+    }
+
+    private void restart() {
+        Log.w(TAG, "Restarting service...");
     }
 }

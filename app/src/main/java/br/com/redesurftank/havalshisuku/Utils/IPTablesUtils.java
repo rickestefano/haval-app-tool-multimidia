@@ -70,12 +70,12 @@ public class IPTablesUtils {
             if (checkProc != null) {
                 try {
                     checkProc.destroy();
-                } catch (RemoteException ignored) {}
+                } catch (Exception ignored) {}
             }
             if (insertProc != null) {
                 try {
                     insertProc.destroy();
-                } catch (RemoteException ignored) {}
+                } catch (Exception ignored) {}
             }
         }
     }

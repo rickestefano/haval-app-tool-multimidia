@@ -1,12 +1,14 @@
 package br.com.redesurftank.havalshisuku
 
+import android.app.TimePickerDialog
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +21,7 @@ import br.com.redesurftank.havalshisuku.Services.ServiceManager
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
+import br.com.redesurftank.havalshisuku.Managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys
 
 class MainActivity : ComponentActivity() {
@@ -64,9 +67,18 @@ fun BasicSettingsTab() {
     var volume by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.STARTUP_VOLUME.key, 1)) }
     var closeWindowsOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, false)) }
     var speedThreshold by remember { mutableFloatStateOf(prefs.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.key, 5f)) }
+    var enableAutoBrightness by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, false)) }
+    var nightStartHour by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, 20)) }
+    var nightStartMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_START_MINUTE.key, 0)) }
+    var nightEndHour by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_HOUR.key, 6)) }
+    var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
@@ -142,6 +154,70 @@ fun BasicSettingsTab() {
                     steps = 21
                 )
             }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = enableAutoBrightness,
+                onCheckedChange = {
+                    enableAutoBrightness = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, it) }
+                    AutoBrightnessManager.getInstance().setEnabled(it)
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.description)
+        }
+        if (enableAutoBrightness) {
+            Column {
+                Text("Período noturno: de ${String.format("%02d:%02d", nightStartHour, nightStartMinute)} até ${String.format("%02d:%02d", nightEndHour, nightEndMinute)}")
+                Row {
+                    Button(onClick = { showStartPicker = true }) { Text("Escolher início") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { showEndPicker = true }) { Text("Escolher fim") }
+                }
+            }
+        }
+    }
+    if (showStartPicker) {
+        LaunchedEffect(Unit) {
+            val dialog = TimePickerDialog(
+                context,
+                { _, h, m ->
+                    nightStartHour = h
+                    nightStartMinute = m
+                    prefs.edit {
+                        putInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, h)
+                        putInt(SharedPreferencesKeys.NIGHT_START_MINUTE.key, m)
+                    }
+                    AutoBrightnessManager.getInstance().updateSchedule()
+                },
+                nightStartHour,
+                nightStartMinute,
+                true
+            )
+            dialog.setOnDismissListener { showStartPicker = false }
+            dialog.show()
+        }
+    }
+    if (showEndPicker) {
+        LaunchedEffect(Unit) {
+            val dialog = TimePickerDialog(
+                context,
+                { _, h, m ->
+                    nightEndHour = h
+                    nightEndMinute = m
+                    prefs.edit {
+                        putInt(SharedPreferencesKeys.NIGHT_END_HOUR.key, h)
+                        putInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, m)
+                    }
+                    AutoBrightnessManager.getInstance().updateSchedule()
+                },
+                nightEndHour,
+                nightEndMinute,
+                true
+            )
+            dialog.setOnDismissListener { showEndPicker = false }
+            dialog.show()
         }
     }
 }
