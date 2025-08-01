@@ -9,6 +9,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.CountDownLatch;
 
+import br.com.redesurftank.havalshisuku.Models.CommandListener;
 import moe.shizuku.server.IRemoteProcess;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;
@@ -48,7 +49,7 @@ public class ShizukuUtils {
             return output.toString().trim();
 
         } catch (Exception e) {
-            Log.e(TAG, "Error running command: " + command, e);
+            Log.e(TAG, "Error running command: " + String.join(" ", command), e);
             return "";
         } finally {
             if (process != null) {
@@ -105,12 +106,13 @@ public class ShizukuUtils {
                         }
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "Error monitoring output for command: " + command, e);
+                    Log.e(TAG, "Error monitoring output for command: " + String.join(" ", command), e);
                 } finally {
                     if (reader != null) {
                         try {
                             reader.close();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                     // If reached end without finding, unblock and return whatever
                     synchronized (lock) {
@@ -127,11 +129,17 @@ public class ShizukuUtils {
                     int exitCode = finalProcess.waitFor();
                     Log.d(TAG, "Process finished with code: " + exitCode);
                 } catch (Exception e) {
-                    Log.e(TAG, "Error waiting for process: " + command, e);
+                    Log.e(TAG, "Error waiting for process: " + String.join(" ", command), e);
                 } finally {
                     try {
                         finalProcess.destroy();
-                    } catch (RemoteException ignored) {}
+                    } catch (RemoteException ignored) {
+                    }
+                    synchronized (lock) {
+                        if (!found[0]) {
+                            latch.countDown();
+                        }
+                    }
                 }
             }).start();
 
@@ -142,19 +150,117 @@ public class ShizukuUtils {
                 if (found[0]) {
                     return output.toString().trim();
                 } else {
-                    Log.e(TAG, "String not found for command: " + command);
+                    Log.e(TAG, "String not found for command: " + String.join(" ", command) +
+                            ". Output was: " + output.toString().trim());
                     return "";
                 }
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Error starting command: " + command, e);
+            Log.e(TAG, "Error starting command: " + String.join(" ", command), e);
+            return "";
+        } finally {
             if (process != null) {
                 try {
                     process.destroy();
-                } catch (Exception ignored) {}
+                } catch (RemoteException ignored) {
+                }
             }
-            return "";
+        }
+    }
+
+    public static void runCommandOnBackground(String command[], CommandListener listener) {
+        IShizukuService shizukuService = IShizukuService.Stub.asInterface(Shizuku.getBinder());
+        IRemoteProcess process = null;
+        try {
+            process = shizukuService.newProcess(command, null, null);
+            if (process == null) {
+                throw new Exception("Failed to create remote process for command: " + String.join(" ", command));
+            }
+
+            IRemoteProcess finalProcess = process;
+
+            // Thread for stdout
+            new Thread(() -> {
+                ParcelFileDescriptor pfd = null;
+                BufferedReader reader = null;
+                try {
+                    pfd = finalProcess.getInputStream();
+                    if (pfd != null) {
+                        FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+                        reader = new BufferedReader(new InputStreamReader(fis));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (listener != null) {
+                                listener.onStdout(line);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error reading stdout for command: " + String.join(" ", command), e);
+                } finally {
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }).start();
+
+            // Thread for stderr
+            new Thread(() -> {
+                ParcelFileDescriptor pfd = null;
+                BufferedReader reader = null;
+                try {
+                    pfd = finalProcess.getErrorStream();
+                    if (pfd != null) {
+                        FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+                        reader = new BufferedReader(new InputStreamReader(fis));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (listener != null) {
+                                listener.onStderr(line);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error reading stderr for command: " + String.join(" ", command), e);
+                } finally {
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }).start();
+
+            // Thread for waitFor and cleanup
+            new Thread(() -> {
+                try {
+                    int exitCode = finalProcess.waitFor();
+                    if (listener != null) {
+                        listener.onFinished(exitCode);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error waiting for command: " + String.join(" ", command), e);
+                } finally {
+                    try {
+                        finalProcess.destroy();
+                    } catch (RemoteException ignored) {
+                    }
+                }
+            }).start();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting command: " + String.join(" ", command), e);
+            if (process != null) {
+                try {
+                    process.destroy();
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 

@@ -17,11 +17,10 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
+import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.BroadcastReceivers.DispatchAllDatasReceiver;
-import br.com.redesurftank.havalshisuku.Models.CommandListener;
 import br.com.redesurftank.havalshisuku.Utils.IPTablesUtils;
 import br.com.redesurftank.havalshisuku.Utils.TelnetClientWrapper;
-import br.com.redesurftank.havalshisuku.Utils.TermuxUtils;
 import rikka.shizuku.Shizuku;
 
 public class ForegroundService extends Service {
@@ -80,12 +79,6 @@ public class ForegroundService extends Service {
                         isShizukuInitialized = true;
                         checkService();
                     });
-                    Shizuku.addBinderDeadListener(() -> {
-                        Log.w(TAG, "Shizuku binder dead");
-                        Log.w(TAG, "Restarting service due to Shizuku binder dead");
-                        stopSelf();
-                        context.startForegroundService(new Intent(context, ForegroundService.class));
-                    });
                     break;
                 } catch (Exception e) {
                     Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
@@ -99,26 +92,6 @@ public class ForegroundService extends Service {
 
             checkService();
         });
-
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction("com.beantechs.intelligentvehiclecontrol.INIT_COMPLETED");
-
-        ContextCompat.registerReceiver(context, new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (isServiceRunning) {
-                    // service already running bug intelligentvehiclecontrol restarted
-                    // restart self
-                    Log.w(TAG, "Received com.beantechs.intelligentvehiclecontrol.INIT_COMPLETED after service started, restarting service...");
-                    stopSelf();
-                    context.startForegroundService(new Intent(context, ForegroundService.class));
-                    return;
-                }
-                checkService();
-            }
-        }, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
-
-        DispatchAllDatasReceiver.registerToBroadcast(context);
 
         return START_STICKY; // Garante que o serviço seja reiniciado se for morto
     }
@@ -149,7 +122,7 @@ public class ForegroundService extends Service {
 
         Log.w(TAG, "Shizuku initialized and permission granted, starting services...");
 
-        var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
+        /*var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
         if (!isSSHRunning) {
             Log.w(TAG, "SSHD is not running, starting it now...");
             TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
@@ -171,10 +144,10 @@ public class ForegroundService extends Service {
         } else {
             Log.w(TAG, "SSHD is already running");
         }
-        var isADBRunning = !TermuxUtils.runCommandAndGetOutput("pgrep adbd").trim().isEmpty();
+        var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
         if (!isADBRunning) {
             Log.w(TAG, "ADB is not running, starting it now...");
-            TermuxUtils.runCommandOnBackground("start adbd", new CommandListener() {
+            ShizukuUtils.runCommandOnBackground(new String[]{"start", "adbd"}, new CommandListener() {
                 @Override
                 public void onStdout(String line) {
                     Log.w(TAG, "ADB Output: " + line);
@@ -192,15 +165,36 @@ public class ForegroundService extends Service {
             });
         } else {
             Log.w(TAG, "ADB is already running");
-        }
+        }*/
         IPTablesUtils.unlockOutputAll();
         boolean initSuccess = ServiceManager.getInstance().initializeServices(getApplicationContext());
         if (!initSuccess) {
+            ServiceManager.CleanInstance();
             Log.e(TAG, "Service initialization failed, restarting...");
             stopSelf();
             getApplicationContext().startForegroundService(new Intent(getApplicationContext(), ForegroundService.class));
             return;
         }
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction("com.beantechs.intelligentvehiclecontrol.INIT_COMPLETED");
+
+        ContextCompat.registerReceiver(App.getContext(), new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (isServiceRunning) {
+                    // service already running bug intelligentvehiclecontrol restarted
+                    // restart self
+                    Log.w(TAG, "Received com.beantechs.intelligentvehiclecontrol.INIT_COMPLETED after service started, restarting service...");
+                    stopSelf();
+                    context.startForegroundService(new Intent(context, ForegroundService.class));
+                    return;
+                }
+                checkService();
+            }
+        }, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
+
+        DispatchAllDatasReceiver.registerToBroadcast(App.getContext());
     }
 
     private void createNotificationChannel() {

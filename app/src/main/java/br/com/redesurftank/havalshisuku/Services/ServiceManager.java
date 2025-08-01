@@ -2,6 +2,8 @@ package br.com.redesurftank.havalshisuku.Services;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -13,6 +15,7 @@ import com.beantechs.voice.adapter.IBinderPool;
 import java.util.List;
 import java.util.Map;
 
+import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.Utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
@@ -50,6 +53,9 @@ public class ServiceManager {
     private Map<String, String> dataCache;
     private SharedPreferences sharedPreferences;
     private Boolean closeWindowDueToeSpeed = false;
+    private HandlerThread handlerThread;
+    private Handler backgroundHandler;
+    private IListener.Stub listener;
 
     private ServiceManager() {
         dataChangedListeners = new java.util.ArrayList<>();
@@ -63,17 +69,49 @@ public class ServiceManager {
         return instance;
     }
 
+    public static synchronized void CleanInstance() {
+        if (instance != null) {
+            Log.w(TAG, "Discarding ServiceManager instance");
+            if (instance.handlerThread != null) {
+                instance.handlerThread.quitSafely();
+                instance.backgroundHandler = null;
+                instance.handlerThread = null;
+            }
+            if (instance.intelligentVehicleControlService != null) {
+                try {
+                    instance.intelligentVehicleControlService.unRegisterDataChangedListener(App.getContext().getPackageName(), instance.listener);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "RemoteException while unregistering listener: " + e.getMessage(), e);
+                }
+            }
+            instance.intelligentVehicleControlService = null;
+            instance.binderPool = null;
+            instance.vehicleService = null;
+            instance.dataChangedListeners.clear();
+            instance.dataCache.clear();
+            instance.sharedPreferences = null;
+            instance.closeWindowDueToeSpeed = false;
+            instance.listener = null;
+            Log.w(TAG, "ServiceManager instance cleaned");
+            instance = null;
+            Log.w(TAG, "ServiceManager instance discarded");
+        }
+    }
+
     public boolean initializeServices(Context context) {
         Log.w(TAG, "Initializing IntelligentVehicleControlService");
         sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
-        FridaUtils.ensureFridaServerRunning();
-        FridaUtils.injectAllScripts();
-        if (!initializeIntelligentVehicleControlService(context)) {
+        handlerThread = new HandlerThread("ServiceManagerHandlerThread");
+        handlerThread.start();
+        backgroundHandler = new Handler(handlerThread.getLooper());
+        if (!FridaUtils.ensureFridaServerRunning())
             return false;
-        }
-        if (!initializeBinderPool(context)) {
+        if (!FridaUtils.injectAllScripts())
             return false;
-        }
+        if (!initializeIntelligentVehicleControlService(context))
+            return false;
+        if (!initializeBinderPool(context))
+            return false;
         return true;
     }
 
@@ -99,7 +137,7 @@ public class ServiceManager {
             Log.e(TAG, "RemoteException while fetching data: " + e.getMessage(), e);
             return false;
         }
-        var listener = new IListener.Stub() {
+        listener = new IListener.Stub() {
             @Override
             public void onDataChanged(String key, String value) {
                 OnDataChanged(context, key, value);
@@ -178,6 +216,17 @@ public class ServiceManager {
                 Log.e(TAG, "Failed to get IVehicle instance from BinderPool");
                 return false;
             }
+
+            backgroundHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+
+                    } finally {
+                        backgroundHandler.postDelayed(this, 1000 * 10); // Check every 10 seconds
+                    }
+                }
+            });
 
             Log.w(TAG, "IVehicle service initialized successfully");
             return true;
