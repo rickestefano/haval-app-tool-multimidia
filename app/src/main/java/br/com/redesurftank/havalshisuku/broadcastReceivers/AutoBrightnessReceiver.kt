@@ -1,9 +1,9 @@
-package br.com.redesurftank.havalshisuku.BroadcastReceivers
+package br.com.redesurftank.havalshisuku.broadcastReceivers
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import br.com.redesurftank.havalshisuku.Managers.AutoBrightnessManager
+import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
 
 class AutoBrightnessReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

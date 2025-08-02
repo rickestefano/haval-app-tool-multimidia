@@ -1,10 +1,10 @@
-package br.com.redesurftank.havalshisuku.BroadcastReceivers;
+package br.com.redesurftank.havalshisuku.broadcastReceivers;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-import br.com.redesurftank.havalshisuku.Services.ForegroundService;
+import br.com.redesurftank.havalshisuku.services.ForegroundService;
 
 public class RestartReceiver extends BroadcastReceiver {
     @Override

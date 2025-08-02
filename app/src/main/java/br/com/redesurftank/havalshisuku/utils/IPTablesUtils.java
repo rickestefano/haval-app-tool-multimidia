@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Utils;
+package br.com.redesurftank.havalshisuku.utils;
 
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;

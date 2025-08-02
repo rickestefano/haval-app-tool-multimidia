@@ -4,7 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 
-import br.com.redesurftank.havalshisuku.Services.ForegroundService;
+import br.com.redesurftank.havalshisuku.services.ForegroundService;
 
 public class App extends Application {
 

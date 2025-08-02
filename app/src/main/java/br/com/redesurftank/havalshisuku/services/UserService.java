@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Services;
+package br.com.redesurftank.havalshisuku.services;
 
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -8,8 +8,6 @@ import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IVehicle;
-
-import java.lang.reflect.Method;
 
 import br.com.redesurftank.havalshisuku.IUserService;
 import rikka.shizuku.SystemServiceHelper;

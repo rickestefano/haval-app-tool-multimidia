@@ -17,12 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import br.com.redesurftank.havalshisuku.Services.ServiceManager
+import br.com.redesurftank.havalshisuku.services.ServiceManager
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
-import br.com.redesurftank.havalshisuku.Managers.AutoBrightnessManager
-import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {

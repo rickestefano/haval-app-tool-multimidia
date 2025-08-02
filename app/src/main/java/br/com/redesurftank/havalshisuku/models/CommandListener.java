@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Models;
+package br.com.redesurftank.havalshisuku.models;
 
 public interface CommandListener {
     void onStdout(String line);

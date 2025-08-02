@@ -1,7 +1,6 @@
-package br.com.redesurftank.havalshisuku.Utils;
+package br.com.redesurftank.havalshisuku.utils;
 
 import android.os.ParcelFileDescriptor;
-import android.os.RemoteException;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -9,7 +8,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.CountDownLatch;
 
-import br.com.redesurftank.havalshisuku.Models.CommandListener;
+import br.com.redesurftank.havalshisuku.models.CommandListener;
 import moe.shizuku.server.IRemoteProcess;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;

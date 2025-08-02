@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Managers
+package br.com.redesurftank.havalshisuku.managers
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -6,9 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.icu.util.Calendar
 import br.com.redesurftank.App
-import br.com.redesurftank.havalshisuku.BroadcastReceivers.AutoBrightnessReceiver
-import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys
-import br.com.redesurftank.havalshisuku.Services.ServiceManager
+import br.com.redesurftank.havalshisuku.broadcastReceivers.AutoBrightnessReceiver
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.services.ServiceManager
 
 class AutoBrightnessManager private constructor() {
     companion object {

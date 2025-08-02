@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.BroadcastReceivers;
+package br.com.redesurftank.havalshisuku.broadcastReceivers;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -8,7 +8,7 @@ import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
-import br.com.redesurftank.havalshisuku.Services.ServiceManager;
+import br.com.redesurftank.havalshisuku.services.ServiceManager;
 
 public class DispatchAllDatasReceiver extends BroadcastReceiver {
 

@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Utils;
+package br.com.redesurftank.havalshisuku.utils;
 
 import android.util.Log;
 
@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import br.com.redesurftank.App;
-import br.com.redesurftank.havalshisuku.Models.CommandListener;
+import br.com.redesurftank.havalshisuku.models.CommandListener;
 import br.com.redesurftank.havalshisuku.R;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;

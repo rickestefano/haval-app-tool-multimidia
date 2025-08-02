@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Services;
+package br.com.redesurftank.havalshisuku.services;
 
 import android.app.AlarmManager;
 import android.app.Notification;
@@ -21,10 +21,10 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 import br.com.redesurftank.App;
-import br.com.redesurftank.havalshisuku.BroadcastReceivers.DispatchAllDatasReceiver;
-import br.com.redesurftank.havalshisuku.BroadcastReceivers.RestartReceiver;
-import br.com.redesurftank.havalshisuku.Utils.IPTablesUtils;
-import br.com.redesurftank.havalshisuku.Utils.TelnetClientWrapper;
+import br.com.redesurftank.havalshisuku.broadcastReceivers.DispatchAllDatasReceiver;
+import br.com.redesurftank.havalshisuku.broadcastReceivers.RestartReceiver;
+import br.com.redesurftank.havalshisuku.utils.IPTablesUtils;
+import br.com.redesurftank.havalshisuku.utils.TelnetClientWrapper;
 import rikka.shizuku.Shizuku;
 
 public class ForegroundService extends Service implements Shizuku.OnBinderDeadListener {

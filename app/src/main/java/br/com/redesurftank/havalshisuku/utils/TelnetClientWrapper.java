@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Utils;
+package br.com.redesurftank.havalshisuku.utils;
 
 import android.util.Log;
 

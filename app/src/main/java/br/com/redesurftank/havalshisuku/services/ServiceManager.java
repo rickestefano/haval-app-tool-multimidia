@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Services;
+package br.com.redesurftank.havalshisuku.services;
 
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
@@ -13,10 +13,7 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
-import com.beantechs.voice.adapter.IVehicle;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,9 +22,9 @@ import java.util.Map;
 
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.IUserService;
-import br.com.redesurftank.havalshisuku.Managers.AutoBrightnessManager;
-import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys;
-import br.com.redesurftank.havalshisuku.Utils.FridaUtils;
+import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager;
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
+import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import rikka.shizuku.Shizuku;
 

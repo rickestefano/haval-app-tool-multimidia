@@ -11,11 +11,10 @@ android {
     defaultConfig {
         applicationId = "br.com.redesurftank.havalshisuku"
         minSdk = 28
-        targetSdk = 36
+        //noinspection ExpiredTargetSdkVersion
+        targetSdk = 28
         versionCode = 1
         versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {

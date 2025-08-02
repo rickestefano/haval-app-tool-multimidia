@@ -1,4 +1,4 @@
-package br.com.redesurftank.havalshisuku.Models
+package br.com.redesurftank.havalshisuku.models
 
 enum class SharedPreferencesKeys(val key: String, val description: String) {
     DISABLE_MONITORING("disableMonitoring", "Manter desativado monitoramento de distrações"),
