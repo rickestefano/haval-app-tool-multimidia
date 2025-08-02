@@ -37,7 +37,7 @@ jobs:
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r -a PARTS <<< "$VERSION"
           BUILD=${PARTS[3]:--1}
-          ((BUILD++))
+          BUILD=$((BUILD + 1))
           NEW_VERSION="${PARTS[0]:-1}.${PARTS[1]:-0}.${PARTS[2]:-0}.$BUILD"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           NEW_VERSION_CODE=$((BUILD + 1))
