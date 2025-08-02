@@ -1,0 +1,61 @@
+name: Build and Release APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Get latest version and increment
+        id: version
+        run: |
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0.-1")
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r -a PARTS <<< "$VERSION"
+          BUILD=${PARTS[3]:--1}
+          ((BUILD++))
+          NEW_VERSION="${PARTS[0]:-1}.${PARTS[1]:-0}.${PARTS[2]:-0}.$BUILD"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          NEW_VERSION_CODE=$((BUILD + 1))
+          echo "new_version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+      - name: Update build.gradle.kts
+        run: |
+          sed -i "s/versionName = \".*\"/versionName = \"${{ steps.version.outputs.new_version }}\"/" app/build.gradle.kts
+          sed -i "s/versionCode = [0-9]*/versionCode = ${{ steps.version.outputs.new_version_code }}/" app/build.gradle.kts
+      - name: Build with Gradle
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+      - name: Create Release
+        run: |
+          gh release create v${{ steps.version.outputs.new_version }} --title "Release ${{ steps.version.outputs.new_version }}" --notes "Automated release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK to release
+        run: |
+          gh release upload v${{ steps.version.outputs.new_version }} app/build/outputs/apk/release/app-release.apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
