@@ -64,6 +64,7 @@
                 <action android:name="br.com.redesurftank.havalshisuku.ACTION_DISPATCH_ALL_DATAS" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".BroadcastReceivers.RestartReceiver" android:exported="false" />
 
         <provider
             android:name="rikka.shizuku.ShizukuProvider"

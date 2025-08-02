@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.Models.CommandListener;
@@ -19,8 +21,14 @@ public class FridaUtils {
     public static final String FRIDA_INJECTOR_PATH = "/data/local/tmp/fridainjector";
     private static final String SCRIPT_DIR = "/data/local/tmp/";
 
+    public enum InjectMode {
+        NECESSARY,
+        OPTIONAL,
+        MANUAL
+    }
+
     public enum ScriptProcess {
-        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, true),
+        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.OPTIONAL),
         ;// Add more processes as needed
 
         private final String process;
@@ -28,15 +36,15 @@ public class FridaUtils {
         private final String baseName;
         private final String fileName;
         private final String scriptPath;
-        private final Boolean injectOnStart;
+        private final InjectMode injectMode;
 
-        ScriptProcess(String process, int resourceId, Boolean injectOnStart) {
+        ScriptProcess(String process, int resourceId, InjectMode injectMode) {
             this.process = process;
             this.resourceId = resourceId;
             this.baseName = process.substring(process.lastIndexOf('.') + 1);
             this.fileName = baseName + ".js";
             this.scriptPath = SCRIPT_DIR + fileName;
-            this.injectOnStart = injectOnStart;
+            this.injectMode = injectMode;
         }
 
         public String getFileName() {
@@ -55,8 +63,8 @@ public class FridaUtils {
             return resourceId;
         }
 
-        public Boolean isInjectOnStart() {
-            return injectOnStart;
+        public InjectMode getInjectMode() {
+            return injectMode;
         }
     }
 
@@ -82,15 +90,24 @@ public class FridaUtils {
         return true;
     }
 
-    public static boolean injectScript(String scriptPath, String targetProcess) {
+    public static boolean injectScript(String scriptPath, String targetProcess, boolean synchronous) {
         Log.w(TAG, "Injecting Frida script: " + scriptPath + " into process: " + targetProcess);
         String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
         if (pid.isEmpty()) {
             Log.e(TAG, "Target process not found: " + targetProcess);
-            return false;
+            if (synchronous) {
+                return false;
+            } else {
+                startPoller(scriptPath, targetProcess);
+                return true;
+            }
         }
         Log.w(TAG, "Injecting Frida script: " + scriptPath + " into PID: " + pid);
-        ShizukuUtils.runCommandOnBackground(new String[]{FRIDA_INJECTOR_PATH, "-p", pid, "-s", scriptPath}, new CommandListener() {
+
+        CountDownLatch latch = synchronous ? new CountDownLatch(1) : null;
+        AtomicInteger exitCodeAtomic = synchronous ? new AtomicInteger(-1) : null;
+
+        CommandListener listener = new CommandListener() {
             @Override
             public void onStdout(String line) {
                 Log.w(TAG, "[Target: " + targetProcess + "] Frida script output: " + line);
@@ -104,21 +121,60 @@ public class FridaUtils {
             @Override
             public void onFinished(int exitCode) {
                 Log.w(TAG, "[Target: " + targetProcess + "] Frida script finished with exit code: " + exitCode);
+                if (synchronous) {
+                    exitCodeAtomic.set(exitCode);
+                    latch.countDown();
+                }
             }
-        });
+        };
+        ShizukuUtils.runCommandOnBackground(new String[]{FRIDA_INJECTOR_PATH, "-p", pid, "-s", scriptPath}, listener);
+
+        if (synchronous) {
+            try {
+                latch.await();
+                return exitCodeAtomic.get() == 0;
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted while waiting for injection", e);
+                return false;
+            }
+        }
         return true;
+    }
+
+    private static void startPoller(String scriptPath, String targetProcess) {
+        new Thread(() -> {
+            while (true) {
+                String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
+                if (!pid.isEmpty()) {
+                    injectScript(scriptPath, targetProcess, false);
+                    break;
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // Ignore
+                }
+            }
+        }).start();
     }
 
     public static boolean injectAllScripts() {
         if (!extractFridaScripts())
             return false;
         for (ScriptProcess sp : ScriptProcess.values()) {
-            if (!sp.isInjectOnStart())
-                continue;
-            if (!injectScript(sp.getScriptPath(), sp.getProcess()))
-                return false;
+            switch (sp.getInjectMode()) {
+                case NECESSARY:
+                    if (!injectScript(sp.getScriptPath(), sp.getProcess(), true))
+                        return false;
+                    break;
+                case OPTIONAL:
+                    injectScript(sp.getScriptPath(), sp.getProcess(), false);
+                    break;
+                case MANUAL:
+                    // Do nothing
+                    break;
+            }
         }
-
         return true;
     }
 

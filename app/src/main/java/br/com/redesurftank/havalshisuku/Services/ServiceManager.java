@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -78,6 +79,8 @@ public class ServiceManager {
     private boolean servicesInitialized = false;
 
     private final List<Runnable> pendingTasks = new ArrayList<>();
+
+    private long timeInitialized;
 
     private final Shizuku.UserServiceArgs userServiceArgs =
             new Shizuku.UserServiceArgs(new ComponentName(App.getContext().getPackageName(), UserService.class.getName()))
@@ -227,6 +230,7 @@ public class ServiceManager {
                 pendingTasks.clear();
             }
 
+            timeInitialized = SystemClock.uptimeMillis();
             Log.w(TAG, "Services initialized successfully");
 
         } catch (RemoteException e) {
@@ -397,5 +401,13 @@ public class ServiceManager {
                 pendingTasks.add(wrapperWithCatch);
             }
         }
+    }
+
+    public boolean isServicesInitialized() {
+        return servicesInitialized;
+    }
+
+    public long getTimeInitialized() {
+        return timeInitialized;
     }
 }

@@ -23,6 +23,7 @@ import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
 import br.com.redesurftank.havalshisuku.Managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.Models.SharedPreferencesKeys
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +42,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Configurações Básicas", "Valores Atuais")
+    val tabs = listOf("Configurações Básicas", "Valores Atuais", "Informações")
     Column(modifier = modifier) {
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
@@ -53,6 +54,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
         when (selectedTab) {
             0 -> BasicSettingsTab()
             1 -> CurrentValuesTab()
+            2 -> InformacoesTab()
         }
     }
 }
@@ -248,6 +250,40 @@ fun CurrentValuesTab() {
     ) {
         items(dataMap.toList()) { (key, value) ->
             Text("$key: $value")
+        }
+    }
+}
+
+@Composable
+fun InformacoesTab() {
+    var isActive by remember { mutableStateOf(ServiceManager.getInstance().isServicesInitialized) }
+    var formattedTime by remember { mutableStateOf("Não inicializado") }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            isActive = ServiceManager.getInstance().isServicesInitialized
+            val timeMillis = ServiceManager.getInstance().timeInitialized
+            formattedTime = if (timeMillis > 0) {
+                val minutes = timeMillis / 60000
+                val seconds = (timeMillis / 1000) % 60
+                val millis = timeMillis % 1000
+                String.format("%02d:%02d.%03d", minutes, seconds, millis)
+            } else {
+                "Não inicializado"
+            }
+            delay(100)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Estado: ${if (isActive) "Ativo" else "Inativo"}")
+        if (isActive) {
+            Text("Tempo de inicialização: $formattedTime")
         }
     }
 }

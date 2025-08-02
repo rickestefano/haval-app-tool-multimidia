@@ -1,8 +1,10 @@
 package br.com.redesurftank.havalshisuku.Services;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,6 +14,7 @@ import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -19,6 +22,7 @@ import androidx.core.content.ContextCompat;
 
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.BroadcastReceivers.DispatchAllDatasReceiver;
+import br.com.redesurftank.havalshisuku.BroadcastReceivers.RestartReceiver;
 import br.com.redesurftank.havalshisuku.Utils.IPTablesUtils;
 import br.com.redesurftank.havalshisuku.Utils.TelnetClientWrapper;
 import rikka.shizuku.Shizuku;
@@ -231,5 +235,11 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
     private void restart() {
         Log.w(TAG, "Restarting service...");
+        Intent broadcastIntent = new Intent(this, RestartReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, broadcastIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        long triggerTime = SystemClock.elapsedRealtime() + 1000; // 1 segundo
+        alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTime, pendingIntent);
+        stopSelf();
     }
 }
