@@ -23,8 +23,11 @@ import androidx.core.content.ContextCompat;
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.DispatchAllDatasReceiver;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.RestartReceiver;
+import br.com.redesurftank.havalshisuku.models.CommandListener;
 import br.com.redesurftank.havalshisuku.utils.IPTablesUtils;
+import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
 import br.com.redesurftank.havalshisuku.utils.TelnetClientWrapper;
+import br.com.redesurftank.havalshisuku.utils.TermuxUtils;
 import rikka.shizuku.Shizuku;
 
 public class ForegroundService extends Service implements Shizuku.OnBinderDeadListener {
@@ -79,6 +82,11 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
                     String executeCommand = filePath;
                     Log.w(TAG, "Executing command: " + executeCommand);
                     String result = telnetClient.executeCommand(executeCommand);
+                    if(result.contains("killing old process")){
+                        Log.w(TAG, "Old process killed, statically waiting 5 seconds to avoid bind on an already dead Shizuku process");
+                        // Espera o Shizuku reiniciar
+                        Thread.sleep(5000);
+                    }
                     Log.w(TAG, "Command executed successfully: " + result);
 
                     telnetClient.disconnect();
@@ -117,6 +125,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
         }
 
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Shizuku permission not granted, requesting permission...");
             Shizuku.addRequestPermissionResultListener((requestCode, grantResult) -> {
                 if (requestCode == 0 && grantResult == PackageManager.PERMISSION_GRANTED) {
                     Log.w(TAG, "Shizuku permission granted");
@@ -131,28 +140,33 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
         Log.w(TAG, "Shizuku initialized and permission granted, starting services...");
 
-        /*var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
-        if (!isSSHRunning) {
-            Log.w(TAG, "SSHD is not running, starting it now...");
-            TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
-                @Override
-                public void onStdout(String line) {
-                    Log.w(TAG, "SSHD Output: " + line);
-                }
+        //check if Termux is installed
+        var isTermuxInstalled = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "list", "packages", "com.termux"}).trim().isEmpty();
+        if (isTermuxInstalled) {
+            var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
+            if (!isSSHRunning) {
+                Log.w(TAG, "SSHD is not running, starting it now...");
+                TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
+                    @Override
+                    public void onStdout(String line) {
+                        Log.w(TAG, "SSHD Output: " + line);
+                    }
 
-                @Override
-                public void onStderr(String line) {
-                    Log.e(TAG, "SSHD Error: " + line);
-                }
+                    @Override
+                    public void onStderr(String line) {
+                        Log.e(TAG, "SSHD Error: " + line);
+                    }
 
-                @Override
-                public void onFinished(int exitCode) {
-                    Log.w(TAG, "SSHD finished with exit code: " + exitCode);
-                }
-            });
-        } else {
-            Log.w(TAG, "SSHD is already running");
+                    @Override
+                    public void onFinished(int exitCode) {
+                        Log.w(TAG, "SSHD finished with exit code: " + exitCode);
+                    }
+                });
+            } else {
+                Log.w(TAG, "SSHD is already running");
+            }
         }
+
         var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
         if (!isADBRunning) {
             Log.w(TAG, "ADB is not running, starting it now...");
@@ -174,7 +188,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
             });
         } else {
             Log.w(TAG, "ADB is already running");
-        }*/
+        }
         IPTablesUtils.unlockOutputAll();
         boolean initSuccess = ServiceManager.getInstance().initializeServices(getApplicationContext());
         if (!initSuccess) {

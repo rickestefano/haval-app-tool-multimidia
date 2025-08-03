@@ -131,7 +131,11 @@ public class ServiceManager {
                 }
             }
 
-            Shizuku.unbindUserService(instance.userServiceArgs, instance.userServiceConnection, true);
+            try {
+                Shizuku.unbindUserService(instance.userServiceArgs, instance.userServiceConnection, true);
+            } catch (Exception e) {
+                Log.e(TAG, "Error unbinding UserService", e);
+            }
 
             instance.userService = null;
             instance.dataChangedListeners.clear();

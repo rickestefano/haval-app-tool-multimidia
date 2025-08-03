@@ -28,7 +28,7 @@ public class FridaUtils {
     }
 
     public enum ScriptProcess {
-        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.OPTIONAL),
+        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.MANUAL),
         ;// Add more processes as needed
 
         private final String process;
