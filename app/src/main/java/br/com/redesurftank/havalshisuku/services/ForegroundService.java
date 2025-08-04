@@ -16,6 +16,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
@@ -65,6 +66,19 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
         startForeground(NOTIFICATION_ID, notification);
 
+        try {
+            var selfPackageInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
+            if (selfPackageInfo.uid > 10999) {
+                // Se o UID for maior que 10999, significa que o aplicativo não tem acesso direto a conectar via telnet. O que impossibilita o start automatizado do Shizuku.
+                Log.w(TAG, "Application UID is greater than 10999, Shizuku cannot be started automatically.");
+                //show a toast to inform the user
+                Toast.makeText(context, "O aplicativo não foi instalado utilizando o exploit corretamente, por favor, reinstale o aplicativo utilizando o exploit correto para que o Shizuku possa ser iniciado automaticamente.", Toast.LENGTH_LONG).show();
+                return START_NOT_STICKY;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
+        }
+
         backgroundHandler.post(() -> {
             while (true) {
                 try {
@@ -82,7 +96,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
                     String executeCommand = filePath;
                     Log.w(TAG, "Executing command: " + executeCommand);
                     String result = telnetClient.executeCommand(executeCommand);
-                    if(result.contains("killing old process")){
+                    if (result.contains("killing old process")) {
                         Log.w(TAG, "Old process killed, statically waiting 5 seconds to avoid bind on an already dead Shizuku process");
                         // Espera o Shizuku reiniciar
                         Thread.sleep(5000);
@@ -95,7 +109,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
                 } catch (Exception e) {
                     Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
                     try {
-                        Thread.sleep(5000); // Espera 5 segundos antes de tentar novamente
+                        Thread.sleep(1000); // Espera 1 segundo antes de tentar novamente
                     } catch (InterruptedException ex) {
                         throw new RuntimeException(ex);
                     }

@@ -258,15 +258,35 @@ fun CurrentValuesTab() {
 fun InformacoesTab() {
     var isActive by remember { mutableStateOf(ServiceManager.getInstance().isServicesInitialized) }
     var formattedTime by remember { mutableStateOf("Não inicializado") }
+    var formattedTime2 by remember { mutableStateOf("Não inicializado") }
+    var formattedTime3 by remember { mutableStateOf("Não inicializado") }
 
     LaunchedEffect(Unit) {
         while (true) {
             isActive = ServiceManager.getInstance().isServicesInitialized
-            val timeMillis = ServiceManager.getInstance().timeInitialized
-            formattedTime = if (timeMillis > 0) {
-                val minutes = timeMillis / 60000
-                val seconds = (timeMillis / 1000) % 60
-                val millis = timeMillis % 1000
+            val timeBoot = ServiceManager.getInstance().timeBootReceived
+            formattedTime = if (timeBoot > 0) {
+                val minutes = timeBoot / 60000
+                val seconds = (timeBoot / 1000) % 60
+                val millis = timeBoot % 1000
+                String.format("%02d:%02d.%03d", minutes, seconds, millis)
+            } else {
+                "Não inicializado"
+            }
+            val timeStart = ServiceManager.getInstance().timeStartInitialization
+            formattedTime2 = if (timeStart > 0) {
+                val minutes = timeStart / 60000
+                val seconds = (timeStart / 1000) % 60
+                val millis = timeStart % 1000
+                String.format("%02d:%02d.%03d", minutes, seconds, millis)
+            } else {
+                "Não inicializado"
+            }
+            val timeInit = ServiceManager.getInstance().timeInitialized
+            formattedTime3 = if (timeInit > 0) {
+                val minutes = timeInit / 60000
+                val seconds = (timeInit / 1000) % 60
+                val millis = timeInit % 1000
                 String.format("%02d:%02d.%03d", minutes, seconds, millis)
             } else {
                 "Não inicializado"
@@ -283,7 +303,9 @@ fun InformacoesTab() {
     ) {
         Text("Estado: ${if (isActive) "Ativo" else "Inativo"}")
         if (isActive) {
-            Text("Tempo de inicialização: $formattedTime")
+            Text("Tempo para receber BOOT_COMPLETED: $formattedTime")
+            Text("Tempo para começar a inicializar: $formattedTime2")
+            Text("Tempo para inicializar: $formattedTime3")
         }
     }
 }

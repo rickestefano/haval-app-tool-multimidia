@@ -18,6 +18,7 @@ public class TelnetClientWrapper {
 
     public void connect(String host, int port) throws IOException {
         telnetClient = new TelnetClient();
+        telnetClient.setConnectTimeout(1000);
         telnetClient.connect(host, port);
         in = telnetClient.getInputStream();
         out = telnetClient.getOutputStream();

@@ -77,6 +77,8 @@ public class ServiceManager {
 
     private final List<Runnable> pendingTasks = new ArrayList<>();
 
+    private long timeBootReceived;
+    private long timeStartInitialization;
     private long timeInitialized;
 
     private final Shizuku.UserServiceArgs userServiceArgs =
@@ -145,6 +147,9 @@ public class ServiceManager {
             instance.listener = null;
             instance.servicesInitialized = false;
             instance.pendingTasks.clear();
+            instance.timeBootReceived = 0;
+            instance.timeStartInitialization = 0;
+            instance.timeInitialized = 0;
 
             Log.w(TAG, "ServiceManager instance cleaned");
             instance = null;
@@ -153,6 +158,7 @@ public class ServiceManager {
     }
 
     public boolean initializeServices(Context context) {
+        timeStartInitialization = SystemClock.uptimeMillis();
         Log.w(TAG, "Initializing services with Shizuku");
 
         sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
@@ -408,7 +414,21 @@ public class ServiceManager {
         return servicesInitialized;
     }
 
+    public void setTimeBootReceived(long l) {
+        if (timeBootReceived != 0)
+            return;
+        timeBootReceived = l;
+    }
+
     public long getTimeInitialized() {
         return timeInitialized;
+    }
+
+    public long getTimeBootReceived() {
+        return timeBootReceived;
+    }
+
+    public long getTimeStartInitialization() {
+        return timeStartInitialization;
     }
 }
