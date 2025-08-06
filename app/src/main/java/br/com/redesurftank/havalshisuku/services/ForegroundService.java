@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat;
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.DispatchAllDatasReceiver;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.RestartReceiver;
+import br.com.redesurftank.havalshisuku.managers.ServiceManager;
 import br.com.redesurftank.havalshisuku.models.CommandListener;
 import br.com.redesurftank.havalshisuku.utils.IPTablesUtils;
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
@@ -79,19 +80,30 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
             Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
         }
 
-        backgroundHandler.post(() -> {
-            while (true) {
+        var sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
+        var shizukuLibLocation = sharedPreferences.getString("shizuku_lib_location", "");
+
+        backgroundHandler.post(new Runnable() {
+            @Override
+            public void run() {
                 try {
                     var telnetClient = new TelnetClientWrapper();
                     telnetClient.connect("127.0.0.1", 23);
-                    String findCommand = "find /data/app -name libshizuku.so";
-                    String filePath = telnetClient.executeCommand(findCommand);
+                    String filePath = "";
+                    if (shizukuLibLocation.isEmpty()) {
+                        String findCommand = "find /data/app -name libshizuku.so";
+                        filePath = telnetClient.executeCommand(findCommand);
 
-                    if (filePath.isEmpty()) {
-                        throw new RuntimeException("libshizuku.so not found");
+                        if (filePath.isEmpty()) {
+                            throw new RuntimeException("libshizuku.so not found");
+                        }
+
+                        sharedPreferences.edit().putString("shizuku_lib_location", filePath).apply();
+                        Log.w(TAG, "libshizuku.so found at: " + filePath);
+                    } else {
+                        Log.w(TAG, "Using already configured Shizuku lib location: " + shizukuLibLocation);
+                        filePath = shizukuLibLocation;
                     }
-
-                    Log.w(TAG, "libshizuku.so found at: " + filePath);
 
                     String executeCommand = filePath;
                     Log.w(TAG, "Executing command: " + executeCommand);
@@ -104,15 +116,10 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
                     Log.w(TAG, "Command executed successfully: " + result);
 
                     telnetClient.disconnect();
-                    Shizuku.addBinderReceivedListenerSticky(this::shizukuBinderReceived);
-                    break;
+                    Shizuku.addBinderReceivedListenerSticky(ForegroundService.this::shizukuBinderReceived);
                 } catch (Exception e) {
                     Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
-                    try {
-                        Thread.sleep(1000); // Espera 1 segundo antes de tentar novamente
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+                    backgroundHandler.postDelayed(this, 1000);
                 }
             }
         });

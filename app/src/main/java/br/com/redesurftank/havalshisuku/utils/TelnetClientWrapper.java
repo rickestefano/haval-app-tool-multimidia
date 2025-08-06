@@ -7,6 +7,8 @@ import org.apache.commons.net.telnet.TelnetClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TelnetClientWrapper {
 
@@ -38,46 +40,55 @@ public class TelnetClientWrapper {
         byte[] bufferBytes = new byte[1024];
         StringBuilder buffer = new StringBuilder();
         StringBuilder clean = new StringBuilder();
-        boolean promptFound = false;
+        List<String> lines = new ArrayList<>();
+        String prompt = ":/ #";
+        long startTime = System.currentTimeMillis();
+        long timeout = 5000;
 
-        while (true) {
+        while (System.currentTimeMillis() - startTime < timeout) {
             if (in.available() > 0) {
                 int bytesRead = in.read(bufferBytes);
                 if (bytesRead == -1) break;
-                String chunk = new String(bufferBytes, 0, bytesRead);
-                Log.w(TAG, "Received: " + chunk);
-                buffer.append(chunk);
+                buffer.append(new String(bufferBytes, 0, bytesRead));
+                Log.d(TAG, "Actual buffer: " + buffer);
 
-                int nlIndex;
-                while ((nlIndex = buffer.indexOf("\n")) != -1) {
-                    String line = buffer.substring(0, nlIndex);
-                    buffer.delete(0, nlIndex + 1);
-                    if (line.endsWith("\r")) {
-                        line = line.substring(0, line.length() - 1);
-                    }
-                    String trimmed = stripAnsi(line).trim();
-                    if (trimmed.isEmpty()) continue;
-                    if (trimmed.equals(command.trim())) continue;
-                    if (trimmed.endsWith(command.trim())) continue;
-                    if (trimmed.matches("^.*[#\\$]\\s*$")) {
-                        promptFound = true;
-                        continue;
-                    }
-                    clean.append(line).append("\n");
-                }
-
-                // Check remaining for prompt
-                String remaining = buffer.toString();
-                String trimmedRemaining = stripAnsi(remaining).trim();
-                if (!trimmedRemaining.isEmpty() && trimmedRemaining.matches("^.*[#\\$]\\s*$")) {
-                    promptFound = true;
-                    buffer.setLength(0);
+                int newlineIndex;
+                while ((newlineIndex = buffer.indexOf("\n")) != -1) {
+                    String line = buffer.substring(0, newlineIndex).trim();
+                    lines.add(line);
+                    buffer.delete(0, newlineIndex + 1);
                 }
             }
-            if (promptFound) break;
+
+            String potentialLast = buffer.toString().trim();
+            boolean promptInBuffer = potentialLast.equals(prompt);
+            boolean promptFoundLocal = promptInBuffer || (!lines.isEmpty() && lines.get(lines.size() - 1).equals(prompt));
+
+            if (promptFoundLocal) {
+                int startIndex = 0;
+                String fullEcho = prompt + " " + command;
+                if (lines.contains(fullEcho)) {
+                    startIndex = lines.indexOf(fullEcho) + 1;
+                } else if (lines.contains(command)) {
+                    startIndex = lines.indexOf(command) + 1;
+                }
+                int endIndex = promptInBuffer ? lines.size() : lines.size() - 1;
+                for (int i = startIndex; i < endIndex; i++) {
+                    String line = lines.get(i);
+                    if (line.isEmpty() || line.equals(prompt)) continue;
+                    clean.append(line).append("\n");
+                }
+                Log.w(TAG, "Prompt found. Lines: " + String.join(", ", lines));
+                return clean.toString().trim();
+            }
+
+            Thread.sleep(10);
         }
-        return clean.toString().trim();
+
+        Log.e(TAG, "Timeout waiting for prompt. Lines: " + String.join(", ", lines) + " Buffer: " + buffer);
+        throw new IOException("Timeout waiting for prompt");
     }
+
 
     public void disconnect() throws IOException {
         if (telnetClient != null) {

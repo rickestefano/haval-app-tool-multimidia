@@ -5,10 +5,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.icu.util.Calendar
+import android.util.Log
 import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.broadcastReceivers.AutoBrightnessReceiver
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
-import br.com.redesurftank.havalshisuku.services.ServiceManager
 
 class AutoBrightnessManager private constructor() {
     companion object {
@@ -87,7 +87,8 @@ class AutoBrightnessManager private constructor() {
             putExtra("isNight", true)
         }
         val pendingIntent = PendingIntent.getBroadcast(App.getContext(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
+        alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        Log.w("AutoBrightnessManager", "Scheduled next start at: ${calendar.time}")
     }
 
     private fun scheduleNextEnd() {
@@ -104,7 +105,8 @@ class AutoBrightnessManager private constructor() {
             putExtra("isNight", false)
         }
         val pendingIntent = PendingIntent.getBroadcast(App.getContext(), 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
+        alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        Log.w("AutoBrightnessManager", "Scheduled next end at: ${calendar.time}")
     }
 
     private fun cancelSchedules() {

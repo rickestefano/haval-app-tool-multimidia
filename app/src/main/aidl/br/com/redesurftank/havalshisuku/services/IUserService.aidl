@@ -1,5 +1,5 @@
 // IUserService.aidl
-package br.com.redesurftank.havalshisuku;
+package br.com.redesurftank.havalshisuku.services;
 
 // Declare any non-default types here with import statements
 
@@ -16,4 +16,5 @@ interface IUserService {
     void addListenerKey(String packageName, in String[] keys);
     int[] getWindowsStatus(int arg);
     void setWindowStatus(int window, int status);
+    int getTotalOdometer();
 }

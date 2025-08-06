@@ -28,7 +28,9 @@ public class FridaUtils {
     }
 
     public enum ScriptProcess {
-        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.MANUAL),
+        INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.OPTIONAL),
+        SYSTEM_SERVER("system_server", R.raw.system_server, InjectMode.OPTIONAL),
+        TS_CAR_POWER_CONTROLLER("com.ts.car.power.controller.core", R.raw.com_ts_car_power_controller_core, InjectMode.OPTIONAL),
         ;// Add more processes as needed
 
         private final String process;
@@ -73,15 +75,15 @@ public class FridaUtils {
         try {
             if (!extractFridaFiles())
                 return false;
+            shizukuService.newProcess(new String[] {"setenforce", "0"}, null, null).waitFor();
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_SERVER_PATH}, null, null).waitFor();
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_INJECTOR_PATH}, null, null).waitFor();
             var isRunning = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
-            if (isRunning.isEmpty()) {
-                Log.w(TAG, "Frida server is not running, starting it now...");
-                shizukuService.newProcess(new String[]{FRIDA_SERVER_PATH}, null, null);
-            } else {
-                Log.w(TAG, "Frida server is already running with PID: " + isRunning);
+            if (!isRunning.isEmpty()) {
+                Log.w(TAG, "Frida server is running with pid: " + isRunning + ". Killing it to restart.");
+                ShizukuUtils.runCommandAndGetOutput(new String[]{"pkill", "-f", "fridaserver"});
             }
+            shizukuService.newProcess(new String[]{FRIDA_SERVER_PATH}, null, null);
         } catch (Exception e) {
             Log.e(TAG, "Error ensuring Frida server is running", e);
             return false;
@@ -90,7 +92,31 @@ public class FridaUtils {
         return true;
     }
 
-    public static boolean injectScript(String scriptPath, String targetProcess, boolean synchronous) {
+    public static boolean injectAllScripts() {
+        if (!extractFridaScripts())
+            return false;
+        for (ScriptProcess sp : ScriptProcess.values()) {
+            switch (sp.getInjectMode()) {
+                case NECESSARY:
+                    if (!injectScript(sp.getScriptPath(), sp.getProcess(), true))
+                        return false;
+                    break;
+                case OPTIONAL:
+                    injectScript(sp.getScriptPath(), sp.getProcess(), false);
+                    break;
+                case MANUAL:
+                    // Do nothing
+                    break;
+            }
+        }
+        return true;
+    }
+
+    public static boolean injectScript(ScriptProcess scriptProcess, boolean synchronous) {
+        return injectScript(scriptProcess.getScriptPath(), scriptProcess.getProcess(), synchronous);
+    }
+
+    private static boolean injectScript(String scriptPath, String targetProcess, boolean synchronous) {
         Log.w(TAG, "Injecting Frida script: " + scriptPath + " into process: " + targetProcess);
         String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
         if (pid.isEmpty()) {
@@ -156,26 +182,6 @@ public class FridaUtils {
                 }
             }
         }).start();
-    }
-
-    public static boolean injectAllScripts() {
-        if (!extractFridaScripts())
-            return false;
-        for (ScriptProcess sp : ScriptProcess.values()) {
-            switch (sp.getInjectMode()) {
-                case NECESSARY:
-                    if (!injectScript(sp.getScriptPath(), sp.getProcess(), true))
-                        return false;
-                    break;
-                case OPTIONAL:
-                    injectScript(sp.getScriptPath(), sp.getProcess(), false);
-                    break;
-                case MANUAL:
-                    // Do nothing
-                    break;
-            }
-        }
-        return true;
     }
 
     public static boolean extractFridaScripts() {

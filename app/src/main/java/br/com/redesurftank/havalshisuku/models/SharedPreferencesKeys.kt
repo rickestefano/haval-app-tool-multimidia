@@ -12,4 +12,12 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     NIGHT_END_HOUR("nightEndHour", "Hora de fim da noite"),
     NIGHT_END_MINUTE("nightEndMinute", "Minuto de fim da noite"),
     ENABLE_AUTO_BRIGHTNESS("enableAutoBrightness", "Habilitar ajuste automático de brilho"),
+    ENABLE_FRIDA_HOOKS("enableFridaHooks", "Habilitar hooks do Frida"),
+    ENABLE_INSTRUMENT_PROJECTOR("enableInstrumentProjector", "Habilitar dados no painel de instrumentos"),
+    ENABLE_INSTRUMENT_REVISION_WARNING("enableInstrumentRevisionWarning", "Habilitar aviso de revisão no painel de instrumentos"),
+    INSTRUMENT_REVISION_KM("instrumentRevisionKm", "Quilometragem para aviso de revisão no painel de instrumentos"),
+    INSTRUMENT_REVISION_DAYS("instrumentRevisionDays", "Dias para aviso de revisão no painel de instrumentos"),
+    INSTRUMENT_REVISION_LAST_DATE("instrumentRevisionLastDate", "Data da última revisão no painel de instrumentos"),
+    INSTRUMENT_REVISION_NEXT_DATE("instrumentRevisionNextDate", "Data da próxima revisão no painel de instrumentos"),
+    CURRENT_USER("currentUser", "Usuário atual"),
 }

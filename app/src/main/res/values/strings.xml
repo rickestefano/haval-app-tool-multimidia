@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Haval Tool</string>
     <string name="title_activity_main">Haval Tool</string>
+    <string name="title_activity_instrument_projector_kt">InstrumentProjectorKt</string>
 </resources>

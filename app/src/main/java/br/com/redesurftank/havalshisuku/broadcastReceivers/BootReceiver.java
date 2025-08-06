@@ -8,7 +8,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import br.com.redesurftank.havalshisuku.services.ForegroundService;
-import br.com.redesurftank.havalshisuku.services.ServiceManager;
+import br.com.redesurftank.havalshisuku.managers.ServiceManager;
 
 public class BootReceiver extends BroadcastReceiver {
 

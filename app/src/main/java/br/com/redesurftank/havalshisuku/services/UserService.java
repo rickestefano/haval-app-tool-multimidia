@@ -9,7 +9,6 @@ import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IVehicle;
 
-import br.com.redesurftank.havalshisuku.IUserService;
 import rikka.shizuku.SystemServiceHelper;
 
 public class UserService extends IUserService.Stub {
@@ -85,5 +84,11 @@ public class UserService extends IUserService.Stub {
     public void setWindowStatus(int window, int status) throws RemoteException {
         if (vehicle == null) throw new RemoteException("Vehicle not initialized");
         vehicle.setWindowStatus(window, status);
+    }
+
+    @Override
+    public int getTotalOdometer() throws RemoteException {
+        if (vehicle == null) throw new RemoteException("Vehicle not initialized");
+        return vehicle.getTotalOdometer();
     }
 }
