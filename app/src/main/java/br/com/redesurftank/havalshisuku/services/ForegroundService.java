@@ -252,10 +252,8 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
         isServiceRunning = false;
         Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
         Shizuku.removeBinderDeadListener(this);
-        Log.w(TAG, "Service is stopping");
-        ServiceManager.CleanInstance();
-        super.onDestroy();
         Log.w(TAG, "Service destroyed");
+        super.onDestroy();
     }
 
     @Override

@@ -11,15 +11,20 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService;
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IVehicle;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
@@ -53,6 +58,21 @@ public class ServiceManager {
             "car.dms.work_state",
             "car.basic.window_status",
             "car.basic.total_odometer",
+            "car.basic.battery_voltage",
+            "car.ev_info.power_battery_voltage",
+            "car.ev_info.power_battery_current",
+            "car.ev_info.cur_battery_power_percentage",
+            "car.ev_info.energy_output_percentage",
+            "car.basic.accumulated_drivetime",
+            "car.ev.setting.avas_enable",
+            "car.ev.setting.avas_config",
+            "sys.avm.preview_status",
+            "car.basic.maintenance_warning",
+            "car.basic.maintenance_warning_mileage",
+            "car.basic.inside_temp",
+            "car.basic.outside_temp",
+            "car.basic.steering_wheel_angle",
+            "car.basic.steering_reset_remind_enable",
     };
     private static ServiceManager instance;
     private final List<IDataChanged> dataChangedListeners;
@@ -65,7 +85,7 @@ public class ServiceManager {
     private boolean servicesInitialized = false;
     private boolean isFridaInitialized = false;
     private final List<Runnable> pendingTasks = new ArrayList<>();
-    private long timeBootReceived;
+    private static long timeBootReceived;
     private long timeStartInitialization;
     private long timeInitialized;
     private IIntelligentVehicleControlService controlService;
@@ -83,40 +103,29 @@ public class ServiceManager {
         return instance;
     }
 
-    public static synchronized void CleanInstance() {
-        if (instance != null) {
-            Log.w(TAG, "Discarding ServiceManager instance");
-            if (instance.handlerThread != null) {
-                instance.handlerThread.quitSafely();
-                instance.backgroundHandler = null;
-                instance.handlerThread = null;
-            }
-            if (instance.controlService != null && instance.listener != null) {
-                try {
-                    instance.controlService.unRegisterDataChangedListener(App.getContext().getPackageName(), instance.listener);
-                } catch (RemoteException e) {
-                    Log.e(TAG, "Error unregistering listener", e);
+    public synchronized boolean initializeServices(Context context) {
+        try {
+            if (controlService != null) {
+                if (controlService.asBinder().isBinderAlive()) {
+                    try {
+                        controlService.unRegisterDataChangedListener(context.getPackageName(), listener);
+                        controlService = null;  // Disconnect binder
+                    } catch (Exception e) {
+                        // ignore
+                    }
                 }
             }
-            instance.controlService = null;
-            instance.vehicle = null;
-            instance.dataChangedListeners.clear();
-            instance.dataCache.clear();
-            instance.sharedPreferences = null;
-            instance.closeWindowDueToeSpeed = false;
-            instance.listener = null;
-            instance.servicesInitialized = false;
-            instance.pendingTasks.clear();
-            instance.timeBootReceived = 0;
-            instance.timeStartInitialization = 0;
-            instance.timeInitialized = 0;
-            Log.w(TAG, "ServiceManager instance cleaned");
-            instance = null;
-            Log.w(TAG, "ServiceManager instance discarded");
+            if (vehicle != null) {
+                vehicle = null;  // Disconnect binder
+            }
+            if (handlerThread != null && handlerThread.isAlive()) {
+                handlerThread.quitSafely();
+                handlerThread = null;
+                backgroundHandler = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error during service cleanup", e);
         }
-    }
-
-    public boolean initializeServices(Context context) {
         timeStartInitialization = SystemClock.uptimeMillis();
         Log.w(TAG, "Initializing services with Shizuku");
         sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
@@ -129,9 +138,9 @@ public class ServiceManager {
         }
 
         try {
-            IBinder controlBinder = new ShizukuBinderWrapper(SystemServiceHelper.getSystemService("com.beantechs.intelligentvehiclecontrol"));
+            IBinder controlBinder = new ShizukuBinderWrapper(getSystemService("com.beantechs.intelligentvehiclecontrol"));
             controlService = IIntelligentVehicleControlService.Stub.asInterface(controlBinder);
-            IBinder poolBinder = new ShizukuBinderWrapper(SystemServiceHelper.getSystemService("com.beantechs.voice.adapter.VoiceAdapterService"));
+            IBinder poolBinder = new ShizukuBinderWrapper(getSystemService("com.beantechs.voice.adapter.VoiceAdapterService"));
             IBinderPool pool = IBinderPool.Stub.asInterface(poolBinder);
             IBinder vehicleBinder = pool.queryBinder(6);
             vehicle = IVehicle.Stub.asInterface(new ShizukuBinderWrapper(vehicleBinder));
@@ -156,8 +165,13 @@ public class ServiceManager {
             }
             boolean isForceDisableMonitoring = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.getKey(), false);
             if (isForceDisableMonitoring) {
-                controlService.request("cmd.common.request.set", "car.frs_setting.distraction_detection_enable", "0");
+                setMonitoringEnabled(false);
                 Log.w(TAG, "Distraction detection monitoring disabled by user preference");
+            }
+            boolean isForceDisableAVAS = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.getKey(), false);
+            if (isForceDisableAVAS) {
+                setAvasEnabled(false);
+                Log.w(TAG, "AVAS disabled by user preference");
             }
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.getKey(), false)) {
                 AutoBrightnessManager.Companion.getInstance().setEnabled(true);
@@ -256,7 +270,6 @@ public class ServiceManager {
     }
 
     private void OnDataChanged(Context context, String key, String value) {
-        Log.w(TAG, "Data changed: " + key + " = " + value);
         Intent broadcastIntent = new Intent("android.intent.haval." + key);
         broadcastIntent.putExtra("value", value);
         context.sendBroadcast(broadcastIntent);
@@ -274,8 +287,15 @@ public class ServiceManager {
             if (key.equals("car.frs_setting.distraction_detection_enable") && value.equals("1")) {
                 boolean isForceDisableMonitoring = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.getKey(), false);
                 if (isForceDisableMonitoring) {
-                    controlService.request("cmd.common.request.set", "car.frs_setting.distraction_detection_enable", "0");
+                    setMonitoringEnabled(false);
                     Log.w(TAG, "Distraction detection monitoring disabled by user preference");
+                }
+            }
+            if (key.equals("car.ev.setting.avas_enable") && value.equals("1")) {
+                boolean isForceDisableAVAS = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.getKey(), false);
+                if (isForceDisableAVAS) {
+                    setAvasEnabled(false);
+                    Log.w(TAG, "AVAS disabled by user preference");
                 }
             } else if (key.equals("car.dms.work_state") && value.equals("0")) {
                 boolean closeWindowOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.getKey(), false);
@@ -306,6 +326,8 @@ public class ServiceManager {
                     closeWindowDueToeSpeed = false;
                     Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
                 }
+            } else if (key.equals("sys.avm.preview_status") && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Integer.parseInt(getData("car.basic.vehicle_speed")) <= 0) {
+                controlService.request("cmd.common.request.set", "sys.avm.preview_status", "0");
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);
@@ -322,6 +344,19 @@ public class ServiceManager {
             Log.w(TAG, "Distraction detection monitoring set to: " + b);
         } catch (RemoteException e) {
             Log.e(TAG, "Error setting monitoring", e);
+        }
+    }
+
+    public void setAvasEnabled(boolean b) {
+        if (controlService == null) {
+            Log.e(TAG, "ControlService not initialized");
+            return;
+        }
+        try {
+            controlService.request("cmd.common.request.set", "car.ev.setting.avas_enable", b ? "1" : "0");
+            Log.w(TAG, "AVAS enabled: " + b);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error setting AVAS", e);
         }
     }
 
@@ -420,5 +455,25 @@ public class ServiceManager {
 
     public long getTimeStartInitialization() {
         return timeStartInitialization;
+    }
+
+    private static IBinder getSystemService(String serviceName) {
+        try {
+            return (IBinder) Objects.requireNonNull(getService.invoke(null, serviceName));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            Log.e(TAG, "Error getting system service: " + serviceName, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Method getService;
+
+    static {
+        try {
+            Class<?> sm = Class.forName("android.os.ServiceManager");
+            getService = sm.getMethod("getService", String.class);
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            Log.w(TAG, Log.getStackTraceString(e));
+        }
     }
 }

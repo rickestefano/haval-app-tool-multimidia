@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Display
 import android.view.Gravity
 import android.view.View
@@ -20,11 +21,14 @@ import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import java.util.concurrent.TimeUnit
+import kotlin.properties.Delegates
 
 class InstrumentProjector(outerContext: Context, display: Display) : Presentation(outerContext, display), IDataChanged {
     private val preferences: SharedPreferences = App.getContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private val serviceManager: ServiceManager = ServiceManager.getInstance()
-    private var currentKm: Int = serviceManager.totalOdometer
+    private var currentKm: Int by Delegates.observable(serviceManager.totalOdometer) { _, _, _ ->
+        updateMaintenanceView()
+    }
     private var maintenanceTextView: TextView? = null
     private var blinkAnimator: ObjectAnimator? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -136,8 +140,8 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
 
     override fun onDataChanged(key: String, value: String) {
         if (key == "car.basic.total_odometer") {
+            Log.w("InstrumentProjector", "Odometer updated: $value")
             currentKm = value.toInt()
-            updateMaintenanceView()
         }
     }
 

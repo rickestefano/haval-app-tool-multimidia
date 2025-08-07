@@ -16,8 +16,8 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     ENABLE_INSTRUMENT_PROJECTOR("enableInstrumentProjector", "Habilitar dados no painel de instrumentos"),
     ENABLE_INSTRUMENT_REVISION_WARNING("enableInstrumentRevisionWarning", "Habilitar aviso de revisão no painel de instrumentos"),
     INSTRUMENT_REVISION_KM("instrumentRevisionKm", "Quilometragem para aviso de revisão no painel de instrumentos"),
-    INSTRUMENT_REVISION_DAYS("instrumentRevisionDays", "Dias para aviso de revisão no painel de instrumentos"),
-    INSTRUMENT_REVISION_LAST_DATE("instrumentRevisionLastDate", "Data da última revisão no painel de instrumentos"),
     INSTRUMENT_REVISION_NEXT_DATE("instrumentRevisionNextDate", "Data da próxima revisão no painel de instrumentos"),
+    DISABLE_AVAS("disableAvas", "Desativar AVAS (sistema de alerta de veículo silencioso)"),
+    DISABLE_AVM_CAR_STOPPED("disableAvmCarStopped", "Desativar camera AVM quando o carro está parado"),
     CURRENT_USER("currentUser", "Usuário atual"),
 }

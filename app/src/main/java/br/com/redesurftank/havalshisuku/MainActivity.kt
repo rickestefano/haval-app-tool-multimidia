@@ -71,6 +71,8 @@ fun BasicSettingsTab() {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var disableMonitoring by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, false)) }
+    var disableAvas by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, false)) }
+    var disableAvmCarStopped by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, false)) }
     var closeWindowOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.key, false)) }
     var setStartupVolume by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.key, false)) }
     var volume by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.STARTUP_VOLUME.key, 1)) }
@@ -103,6 +105,29 @@ fun BasicSettingsTab() {
             )
             Spacer(Modifier.width(8.dp))
             Text(SharedPreferencesKeys.DISABLE_MONITORING.description)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = disableAvas,
+                onCheckedChange = {
+                    disableAvas = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, it) }
+                    ServiceManager.getInstance().setAvasEnabled(!it)
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.DISABLE_AVAS.description)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = disableAvmCarStopped,
+                onCheckedChange = {
+                    disableAvmCarStopped = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, it) }
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.description)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
