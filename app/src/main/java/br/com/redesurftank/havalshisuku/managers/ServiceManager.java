@@ -168,7 +168,7 @@ public class ServiceManager {
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.getKey(), false)) {
                 int startupVolume = sharedPreferences.getInt(SharedPreferencesKeys.STARTUP_VOLUME.getKey(), -1);
                 if (startupVolume != -1) {
-                    controlService.request("cmd.common.request.set", "sys.settings.audio.media_volume", String.valueOf(startupVolume));
+                    controlService.request("cmd.common.request.set", CarConstants.SYS_SETTINGS_AUDIO_MEDIA_VOLUME.getValue(), String.valueOf(startupVolume));
                     Log.w(TAG, "Startup volume set to: " + startupVolume);
                 }
             }
@@ -294,20 +294,20 @@ public class ServiceManager {
         }
         dataCache.put(key, value);
         try {
-            if (key.equals("car.frs_setting.distraction_detection_enable") && value.equals("1")) {
+            if (key.equals(CarConstants.CAR_FRS_SETTING_DISTRACTION_DETECTION_ENABLE.getValue()) && value.equals("1")) {
                 boolean isForceDisableMonitoring = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.getKey(), false);
                 if (isForceDisableMonitoring) {
                     setMonitoringEnabled(false);
                     Log.w(TAG, "Distraction detection monitoring disabled by user preference");
                 }
             }
-            if (key.equals("car.ev.setting.avas_enable") && value.equals("1")) {
+            if (key.equals(CarConstants.CAR_EV_SETTING_AVAS_ENABLE.getValue()) && value.equals("1")) {
                 boolean isForceDisableAVAS = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.getKey(), false);
                 if (isForceDisableAVAS) {
                     setAvasEnabled(false);
                     Log.w(TAG, "AVAS disabled by user preference");
                 }
-            } else if (key.equals("car.dms.work_state") && value.equals("0")) {
+            } else if (key.equals(CarConstants.CAR_DMS_WORK_STATE.getValue()) && value.equals("0")) {
                 boolean closeWindowOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.getKey(), false);
                 if (closeWindowOnPowerOff) {
                     int[] windowsStatus = vehicle.getWindowsStatus(0);
@@ -319,7 +319,7 @@ public class ServiceManager {
                         }
                     }
                 }
-            } else if (key.equals("car.basic.vehicle_speed") && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.getKey(), false)) {
+            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.getKey(), false)) {
                 float currentSpeed = Float.parseFloat(value);
                 if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.getKey(), 0)) {
                     if (!closeWindowDueToeSpeed) {
@@ -336,7 +336,7 @@ public class ServiceManager {
                     closeWindowDueToeSpeed = false;
                     Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
                 }
-            } else if (key.equals("sys.avm.preview_status") && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData("car.basic.vehicle_speed")) <= 0f) {
+            } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f) {
                 dvr.setAVM(0);
             }
         } catch (Exception e) {
@@ -350,7 +350,7 @@ public class ServiceManager {
             return;
         }
         try {
-            controlService.request("cmd.common.request.set", "car.frs_setting.distraction_detection_enable", b ? "1" : "0");
+            controlService.request("cmd.common.request.set", CarConstants.CAR_FRS_SETTING_DISTRACTION_DETECTION_ENABLE.getValue(), b ? "1" : "0");
             Log.w(TAG, "Distraction detection monitoring set to: " + b);
         } catch (RemoteException e) {
             Log.e(TAG, "Error setting monitoring", e);
@@ -363,7 +363,7 @@ public class ServiceManager {
             return;
         }
         try {
-            controlService.request("cmd.common.request.set", "car.ev.setting.avas_enable", b ? "1" : "0");
+            controlService.request("cmd.common.request.set", CarConstants.CAR_EV_SETTING_AVAS_ENABLE.getValue(), b ? "1" : "0");
             Log.w(TAG, "AVAS enabled: " + b);
         } catch (RemoteException e) {
             Log.e(TAG, "Error setting AVAS", e);
@@ -401,7 +401,7 @@ public class ServiceManager {
     }
 
     public int getTotalOdometer() {
-        var totalOdometer = getData("car.basic.total_odometer");
+        var totalOdometer = getData(CarConstants.CAR_BASIC_TOTAL_ODOMETER.getValue());
         if (totalOdometer == null || totalOdometer.isEmpty()) {
             Log.w(TAG, "Total odometer data is not available");
             return 0;

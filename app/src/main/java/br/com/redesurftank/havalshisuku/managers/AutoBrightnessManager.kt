@@ -8,6 +8,7 @@ import android.icu.util.Calendar
 import android.util.Log
 import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.broadcastReceivers.AutoBrightnessReceiver
+import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 
 class AutoBrightnessManager private constructor() {
@@ -61,15 +62,15 @@ class AutoBrightnessManager private constructor() {
 
     fun adjustBrightnessForNight() {
         ServiceManager.getInstance().executeWithServicesRunning {
-            ServiceManager.getInstance().updateData("sys.settings.display.brightness_level", "1");
-            ServiceManager.getInstance().updateData("car.ipk_setting.brightness_config", "1");
+            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, "1");
+            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, "1");
         };
     }
 
     fun adjustBrightnessForDay() {
         ServiceManager.getInstance().executeWithServicesRunning {
-            ServiceManager.getInstance().updateData("sys.settings.display.brightness_level", "10");
-            ServiceManager.getInstance().updateData("car.ipk_setting.brightness_config", "10");
+            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, "10");
+            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, "10");
         };
     }
 

@@ -19,6 +19,7 @@ import androidx.core.graphics.drawable.toDrawable
 import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
+import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
@@ -146,7 +147,7 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
     }
 
     override fun onDataChanged(key: String, value: String) {
-        if (key == "car.basic.total_odometer") {
+        if (key == CarConstants.CAR_BASIC_TOTAL_ODOMETER.value) {
             currentKm = value.toInt()
         }
     }
