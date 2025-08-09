@@ -16,17 +16,20 @@ import androidx.annotation.NonNull;
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService;
 import com.beantechs.voice.adapter.IBinderPool;
+import com.beantechs.voice.adapter.IDvr;
 import com.beantechs.voice.adapter.IVehicle;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
@@ -37,42 +40,42 @@ import rikka.shizuku.SystemServiceHelper;
 @SuppressLint("PrivateApi")
 public class ServiceManager {
     private static final String TAG = "ServiceManager";
-    private static final String[] DEFAULT_KEYS = {
-            "sys.settings.display.backlight_state",
-            "car.ipk_setting.brightness_config",
-            "sys.settings.display.brightness_level",
-            "car.basic.driving_ready_state",
-            "car.frs_setting.distraction_detection_enable",
-            "car.hvac.pass_temperature",
-            "car.hvac.driver_temperature",
-            "car.hvac.cycle_mode",
-            "car.hvac.blower_mode",
-            "car.hvac.fan_speed",
-            "car.hvac.power_mode",
-            "car.basic.door_status",
-            "car.hvac.anion_enable",
-            "car.basic.vehicle_speed",
-            "sys.settings.audio.media_volume",
-            "car.hvac.front_defrost_enable",
-            "car.hvac.sync_enable",
-            "car.dms.work_state",
-            "car.basic.window_status",
-            "car.basic.total_odometer",
-            "car.basic.battery_voltage",
-            "car.ev_info.power_battery_voltage",
-            "car.ev_info.power_battery_current",
-            "car.ev_info.cur_battery_power_percentage",
-            "car.ev_info.energy_output_percentage",
-            "car.basic.accumulated_drivetime",
-            "car.ev.setting.avas_enable",
-            "car.ev.setting.avas_config",
-            "sys.avm.preview_status",
-            "car.basic.maintenance_warning",
-            "car.basic.maintenance_warning_mileage",
-            "car.basic.inside_temp",
-            "car.basic.outside_temp",
-            "car.basic.steering_wheel_angle",
-            "car.basic.steering_reset_remind_enable",
+    public static final CarConstants[] DEFAULT_KEYS = {
+            CarConstants.CAR_BASIC_ACCUMULATED_DIRVETIME,
+            CarConstants.CAR_BASIC_BATTERY_VOLTAGE,
+            CarConstants.CAR_BASIC_DOOR_STATUS,
+            CarConstants.CAR_BASIC_DRIVING_READY_STATE,
+            CarConstants.CAR_BASIC_INSIDE_TEMP,
+            CarConstants.CAR_BASIC_MAINTENANCE_WARNING,
+            CarConstants.CAR_BASIC_MAINTENANCE_WARNING_MILEAGE,
+            CarConstants.CAR_BASIC_OUTSIDE_TEMP,
+            CarConstants.CAR_BASIC_STEERING_RESET_REMIND_ENABLE,
+            CarConstants.CAR_BASIC_STEERING_WHEEL_ANGLE,
+            CarConstants.CAR_BASIC_TOTAL_ODOMETER,
+            CarConstants.CAR_BASIC_VEHICLE_SPEED,
+            CarConstants.CAR_BASIC_WINDOW_STATUS,
+            CarConstants.CAR_DMS_WORK_STATE,
+            CarConstants.CAR_EV_SETTING_AVAS_CONFIG,
+            CarConstants.CAR_EV_SETTING_AVAS_ENABLE,
+            CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE,
+            CarConstants.CAR_EV_INFO_ENERGY_OUTPUT_PERCENTAGE,
+            CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE,
+            CarConstants.CAR_FRS_SETTING_DISTRACTION_DETECTION_ENABLE,
+            CarConstants.CAR_HVAC_ANION_ENABLE,
+            CarConstants.CAR_HVAC_BLOWER_MODE,
+            CarConstants.CAR_HVAC_CYCLE_MODE,
+            CarConstants.CAR_HVAC_DRIVER_TEMPERATURE,
+            CarConstants.CAR_HVAC_FAN_SPEED,
+            CarConstants.CAR_HVAC_FRONT_DEFROST_ENABLE,
+            CarConstants.CAR_HVAC_PASS_TEMPERATURE,
+            CarConstants.CAR_HVAC_POWER_MODE,
+            CarConstants.CAR_HVAC_SYNC_ENABLE,
+            CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG,
+            CarConstants.SYS_AVM_AUTO_PREVIEW_ENABLE,
+            CarConstants.SYS_AVM_PREVIEW_STATUS,
+            CarConstants.SYS_SETTINGS_AUDIO_MEDIA_VOLUME,
+            CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
+            CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL
     };
     private static ServiceManager instance;
     private final List<IDataChanged> dataChangedListeners;
@@ -90,6 +93,7 @@ public class ServiceManager {
     private long timeInitialized;
     private IIntelligentVehicleControlService controlService;
     private IVehicle vehicle;
+    private IDvr dvr;
 
     private ServiceManager() {
         dataChangedListeners = new ArrayList<>();
@@ -118,6 +122,9 @@ public class ServiceManager {
             if (vehicle != null) {
                 vehicle = null;  // Disconnect binder
             }
+            if (dvr != null) {
+                dvr = null;  // Disconnect binder
+            }
             if (handlerThread != null && handlerThread.isAlive()) {
                 handlerThread.quitSafely();
                 handlerThread = null;
@@ -144,18 +151,20 @@ public class ServiceManager {
             IBinderPool pool = IBinderPool.Stub.asInterface(poolBinder);
             IBinder vehicleBinder = pool.queryBinder(6);
             vehicle = IVehicle.Stub.asInterface(new ShizukuBinderWrapper(vehicleBinder));
+            IBinder dvrBinder = pool.queryBinder(8);
+            dvr = IDvr.Stub.asInterface(new ShizukuBinderWrapper(dvrBinder));
             Log.w(TAG, "Services bound successfully");
             listener = new IListener.Stub() {
                 @Override
                 public void onDataChanged(String key, String value) {
-                    OnDataChanged(context, key, value);
+                    OnDataChanged(key, value);
                 }
             };
             controlService.registerDataChangedListener(context.getPackageName(), listener);
             Log.w(TAG, "Listener registered successfully");
-            controlService.addListenerKey(context.getPackageName(), DEFAULT_KEYS);
+            controlService.addListenerKey(App.getContext().getPackageName(), getCombinedKeys());
             Log.w(TAG, "Listener keys added successfully");
-            dispatchAllData(context);
+            dispatchAllData();
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.getKey(), false)) {
                 int startupVolume = sharedPreferences.getInt(SharedPreferencesKeys.STARTUP_VOLUME.getKey(), -1);
                 if (startupVolume != -1) {
@@ -198,12 +207,13 @@ public class ServiceManager {
         }
     }
 
-    public void dispatchAllData(Context context) {
+    public void dispatchAllData() {
         if (controlService == null) return;
         try {
-            String[] currentValues = controlService.fetchDatas(DEFAULT_KEYS);
+            var allKeys = getCombinedKeys();
+            String[] currentValues = controlService.fetchDatas(allKeys);
             for (int i = 0; i < currentValues.length; i++) {
-                OnDataChanged(context, DEFAULT_KEYS[i], currentValues[i]);
+                OnDataChanged(allKeys[i], currentValues[i]);
             }
         } catch (RemoteException e) {
             Log.e(TAG, "Error dispatching data", e);
@@ -269,12 +279,12 @@ public class ServiceManager {
         return new HashMap<>(dataCache);
     }
 
-    private void OnDataChanged(Context context, String key, String value) {
+    private void OnDataChanged( String key, String value) {
         Intent broadcastIntent = new Intent("android.intent.haval." + key);
         broadcastIntent.putExtra("value", value);
-        context.sendBroadcast(broadcastIntent);
+        App.getContext().sendBroadcast(broadcastIntent);
         broadcastIntent = new Intent("android.intent.haval." + key + "_" + value);
-        context.sendBroadcast(broadcastIntent);
+        App.getContext().sendBroadcast(broadcastIntent);
         for (IDataChanged listener : new ArrayList<>(dataChangedListeners)) {
             try {
                 listener.onDataChanged(key, value);
@@ -326,8 +336,8 @@ public class ServiceManager {
                     closeWindowDueToeSpeed = false;
                     Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
                 }
-            } else if (key.equals("sys.avm.preview_status") && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Integer.parseInt(getData("car.basic.vehicle_speed")) <= 0) {
-                controlService.request("cmd.common.request.set", "sys.avm.preview_status", "0");
+            } else if (key.equals("sys.avm.preview_status") && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData("car.basic.vehicle_speed")) <= 0f) {
+                dvr.setAVM(0);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);
@@ -402,6 +412,28 @@ public class ServiceManager {
             Log.e(TAG, "Error parsing total odometer value: " + totalOdometer, e);
             return 0;
         }
+    }
+
+    public void updateMonitoringProperties() {
+        executeWithServicesRunning(() -> {
+            try {
+                var allKeys = getCombinedKeys();
+                controlService.addListenerKey(App.getContext().getPackageName(), allKeys);
+                for (String s : new HashSet<>(dataCache.keySet())) {
+                    dataCache.remove(s);
+                }
+            } catch (RemoteException e) {
+                Log.e(TAG, "Error updating monitoring properties", e);
+            }
+            dispatchAllData();
+        });
+    }
+
+    public String[] getCombinedKeys() {
+        List<String> keys = new ArrayList<>();
+        keys.addAll(List.of(CarConstants.FromArray(DEFAULT_KEYS)));
+        keys.addAll(sharedPreferences.getStringSet(SharedPreferencesKeys.CAR_MONITOR_PROPERTIES.getKey(), new HashSet<>()));
+        return keys.toArray(new String[0]);
     }
 
     public void initializeFrida() {

@@ -1,9 +1,16 @@
 package br.com.redesurftank.havalshisuku
 
+import android.R.attr.data
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,16 +27,33 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
+import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.min
+
+const val TAG = "HavalShisuku"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +94,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
 fun BasicSettingsTab() {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
     var disableMonitoring by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, false)) }
     var disableAvas by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, false)) }
     var disableAvmCarStopped by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, false)) }
@@ -212,20 +237,22 @@ fun BasicSettingsTab() {
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = enableFridaHooks,
-                onCheckedChange = { newValue ->
-                    if (!newValue) {
-                        enableFridaHooks = false
-                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false) }
-                    } else {
-                        showFridaDialog = true
+        if (advancedUse) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = enableFridaHooks,
+                    onCheckedChange = { newValue ->
+                        if (!newValue) {
+                            enableFridaHooks = false
+                            prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false) }
+                        } else {
+                            showFridaDialog = true
+                        }
                     }
-                }
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.description)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.description)
+            }
         }
     }
     if (showStartPicker) {
@@ -414,40 +441,186 @@ fun TelasTab() {
 
 @Composable
 fun CurrentValuesTab() {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
     val dataMap = remember {
         mutableStateMapOf<String, String>().apply {
-            putAll(ServiceManager.getInstance().getAllCurrentCachedData())
+            putAll(ServiceManager.getInstance().allCurrentCachedData)
         }
     }
-    DisposableEffect(Unit) {
-        val listener = object : IDataChanged {
-            override fun onDataChanged(key: String, value: String) {
-                dataMap[key] = value
-            }
+    var showConfigDialog by remember { mutableStateOf(false) }
+    val allConstants = remember { CarConstants.entries.map { it.value } }
+    val defaultKeys = remember { ServiceManager.DEFAULT_KEYS.map { it.value } } // Assuming DEFAULT_KEYS is Array<CarConstants>
+    val filteredConstants = remember { allConstants.filter { it !in defaultKeys } }
+    val monitoredSet = remember {
+        mutableStateOf(prefs.getStringSet(SharedPreferencesKeys.CAR_MONITOR_PROPERTIES.key, emptySet()) ?: emptySet())
+    }
+    val tempChecked = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            allConstants.forEach { this[it] = monitoredSet.value.contains(it) }
         }
+    }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var selectedKey by remember { mutableStateOf("") }
+    var newValue by remember { mutableStateOf("") }
+    var searchQueryValues by remember { mutableStateOf("") }
+    var searchQueryConfig by remember { mutableStateOf("") }
+    DisposableEffect(Unit) {
+        val listener = IDataChanged { key, value -> dataMap[key] = value }
         ServiceManager.getInstance().addDataChangedListener(listener)
         onDispose {
             ServiceManager.getInstance().removeDataChangedListener(listener)
         }
     }
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(16.dp)
     ) {
-        items(dataMap.toList()) { (key, value) ->
-            Text("$key: $value")
+        if (advancedUse) {
+            Button(onClick = { showConfigDialog = true }) {
+                Text("Configurar")
+            }
+            Spacer(Modifier.height(8.dp))
         }
+        TextField(
+            value = searchQueryValues,
+            onValueChange = { searchQueryValues = it },
+            label = { Text("Pesquisar valores") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val filteredData = dataMap.toList()
+                .filter { it.first.lowercase().contains(searchQueryValues.lowercase()) }
+                .sortedBy { it.first }
+            items(filteredData) { (key, value) ->
+                Text(
+                    "$key: $value",
+                    modifier = if (advancedUse) Modifier.clickable {
+                        selectedKey = key
+                        newValue = value
+                        showUpdateDialog = true
+                    } else Modifier
+                )
+            }
+        }
+    }
+    if (showConfigDialog && advancedUse) {
+        AlertDialog(
+            onDismissRequest = { showConfigDialog = false },
+            title = { Text("Configurar Monitoramento") },
+            text = {
+                Column {
+                    TextField(
+                        value = searchQueryConfig,
+                        onValueChange = { searchQueryConfig = it },
+                        label = { Text("Pesquisar constantes") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    val checked = filteredConstants.filter { tempChecked[it] ?: false }.sorted()
+                    val unchecked = filteredConstants.filter { !(tempChecked[it] ?: false) }.sorted()
+                    val sortedConstants = (checked + unchecked)
+                        .filter { it.lowercase().contains(searchQueryConfig.lowercase()) }
+                    LazyColumn {
+                        items(sortedConstants) { constant ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = tempChecked[constant] ?: false,
+                                    onCheckedChange = { tempChecked[constant] = it }
+                                )
+                                Text(constant)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val newSet = tempChecked.filterValues { it }.keys.toSet()
+                    prefs.edit { putStringSet(SharedPreferencesKeys.CAR_MONITOR_PROPERTIES.key, newSet) }
+                    monitoredSet.value = newSet
+                    showConfigDialog = false
+                    ServiceManager.getInstance().updateMonitoringProperties()
+                    dataMap.clear()
+                    dataMap.putAll(ServiceManager.getInstance().allCurrentCachedData)
+                }) {
+                    Text("Salvar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    allConstants.forEach { tempChecked[it] = monitoredSet.value.contains(it) }
+                    showConfigDialog = false
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+    if (showUpdateDialog && advancedUse) {
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            title = { Text("Atualizar $selectedKey") },
+            text = {
+                TextField(
+                    value = newValue,
+                    onValueChange = { newValue = it },
+                    label = { Text("Novo valor") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ServiceManager.getInstance().updateData(selectedKey, newValue)
+                    showUpdateDialog = false
+                }) {
+                    Text("Atualizar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpdateDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
 @Composable
 fun InformacoesTab() {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var isActive by remember { mutableStateOf(ServiceManager.getInstance().isServicesInitialized) }
     var formattedTime by remember { mutableStateOf("Não inicializado") }
     var formattedTime2 by remember { mutableStateOf("Não inicializado") }
     var formattedTime3 by remember { mutableStateOf("Não inicializado") }
+    var version by remember { mutableStateOf("Desconhecida") }
+    var clickCount by remember { mutableIntStateOf(0) }
+    var showAdvancedDialog by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf("") }
+    var updateAvailable by remember { mutableStateOf(false) }
+    var latestVersion by remember { mutableStateOf("") }
+    var downloadUrl by remember { mutableStateOf("") }
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableFloatStateOf(0f) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+    var downloadJob by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            version = packageInfo.versionName ?: "Desconhecida"
+        } catch (e: PackageManager.NameNotFoundException) {
+            version = "Erro"
+        }
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             isActive = ServiceManager.getInstance().isServicesInitialized
@@ -481,6 +654,88 @@ fun InformacoesTab() {
             delay(100)
         }
     }
+
+    suspend fun getLatestReleaseInfo(): Pair<String?, String?> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("https://api.github.com/repos/bobaoapae/haval-app-tool-multimidia/releases/latest")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                if (conn.responseCode == 200) {
+                    val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                    val response = reader.use { it.readText() }
+                    val json = JSONObject(response)
+                    val tag = json.getString("tag_name")
+                    val assets = json.getJSONArray("assets")
+                    var dlUrl: String? = null
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.getJSONObject(i)
+                        if (asset.getString("name").endsWith(".apk")) {
+                            dlUrl = asset.getString("browser_download_url")
+                            break
+                        }
+                    }
+                    tag to dlUrl
+                } else null to null
+            } catch (e: Exception) {
+                Log.w(TAG, "Error fetching latest release info", e)
+                null to null
+            }
+        }
+    }
+
+    fun compareVersions(v1: String, v2: String): Int {
+        val parts1 = v1.split(".").map { it.toIntOrNull() ?: 0 }
+        val parts2 = v2.split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until min(parts1.size, parts2.size)) {
+            if (parts1[i] > parts2[i]) return 1
+            if (parts1[i] < parts2[i]) return -1
+        }
+        return parts1.size.compareTo(parts2.size)
+    }
+
+    fun startDownload() {
+        isDownloading = true
+        downloadProgress = 0f
+        downloadJob = scope.launch(Dispatchers.IO) {
+            try {
+                val file = File(context.getExternalFilesDir(null), "update.apk")
+                withContext(Dispatchers.IO) {
+                    val url = URL(downloadUrl)
+                    val conn = url.openConnection() as HttpURLConnection
+                    val length = conn.contentLength
+                    val input = BufferedInputStream(conn.inputStream)
+                    val output = FileOutputStream(file)
+                    val buffer = ByteArray(4096)
+                    var bytesRead: Int
+                    var total = 0
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        total += bytesRead
+                        if (length > 0) downloadProgress = total.toFloat() / length
+                    }
+                    output.close()
+                    input.close()
+                }
+                isDownloading = false
+                withContext(Dispatchers.Main) {
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed", e)
+                isDownloading = false
+                downloadError = e.message ?: "Erro desconhecido"
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -493,6 +748,135 @@ fun InformacoesTab() {
             Text("Tempo para começar a inicializar: $formattedTime2")
             Text("Tempo para inicializar: $formattedTime3")
         }
+        Text(
+            "Versão: $version",
+            modifier = Modifier.combinedClickable(
+                onClick = {
+                    clickCount++
+                    if (clickCount >= 5) {
+                        showAdvancedDialog = true
+                        clickCount = 0
+                    }
+                },
+                onLongClick = {
+                    scope.launch {
+                        val (latest, dlUrl) = getLatestReleaseInfo()
+                        if (latest != null && dlUrl != null) {
+                            val currentClean = version.removePrefix("v")
+                            val latestClean = latest.removePrefix("v")
+                            if (compareVersions(latestClean, currentClean) > 0) {
+                                latestVersion = latest
+                                downloadUrl = dlUrl
+                                updateAvailable = true
+                            } else {
+                                updateMessage = "Atualizado"
+                                showUpdateDialog = true
+                            }
+                        } else {
+                            updateMessage = "Erro na verificação"
+                            showUpdateDialog = true
+                        }
+                    }
+                }
+            )
+        )
+    }
+
+    if (showAdvancedDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdvancedDialog = false },
+            title = { Text("Confirmação") },
+            text = { Text("Quer ativar o uso avançado? Pode causar instabilidades, utilize por conta e risco.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showAdvancedDialog = false
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ADVANCE_USE.key, true) }
+                }) {
+                    Text("Ativar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdvancedDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showUpdateDialog) {
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            title = { Text("Verificação de Atualização") },
+            text = { Text(updateMessage) },
+            confirmButton = {
+                TextButton(onClick = { showUpdateDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (updateAvailable) {
+        AlertDialog(
+            onDismissRequest = { updateAvailable = false },
+            title = { Text("Atualização disponível: $latestVersion") },
+            text = { Text("Deseja baixar?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    updateAvailable = false
+                    startDownload()
+                }) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { updateAvailable = false }) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
+    if (isDownloading) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Baixando atualização") },
+            text = {
+                Column {
+                    LinearProgressIndicator(progress = { downloadProgress })
+                    Text("${(downloadProgress * 100).toInt()}%")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    downloadJob?.cancel()
+                    isDownloading = false
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (downloadError != null) {
+        AlertDialog(
+            onDismissRequest = { downloadError = null },
+            title = { Text("Erro no download") },
+            text = { Text(downloadError!!) },
+            confirmButton = {
+                TextButton(onClick = {
+                    downloadError = null
+                    startDownload()
+                }) {
+                    Text("Tentar novamente")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { downloadError = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 

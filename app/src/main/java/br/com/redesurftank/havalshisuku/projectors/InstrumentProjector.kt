@@ -26,25 +26,28 @@ import kotlin.properties.Delegates
 class InstrumentProjector(outerContext: Context, display: Display) : Presentation(outerContext, display), IDataChanged {
     private val preferences: SharedPreferences = App.getContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private val serviceManager: ServiceManager = ServiceManager.getInstance()
+    private val handler = Handler(Looper.getMainLooper())
+
     private var currentKm: Int by Delegates.observable(serviceManager.totalOdometer) { _, _, _ ->
-        updateMaintenanceView()
+        ensureUi { updateMaintenanceViewInternal() }
     }
+
     private var maintenanceTextView: TextView? = null
     private var blinkAnimator: ObjectAnimator? = null
-    private val handler = Handler(Looper.getMainLooper())
     private lateinit var rootLayout: RelativeLayout
+
     private val maintenanceParams = RelativeLayout.LayoutParams(
         RelativeLayout.LayoutParams.WRAP_CONTENT,
         RelativeLayout.LayoutParams.WRAP_CONTENT
     ).apply {
         addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
         addRule(RelativeLayout.CENTER_HORIZONTAL)
-        bottomMargin = 15 // Adjust as needed for 1920x1080
+        bottomMargin = 15
     }
 
     private val timeUpdateRunnable = object : Runnable {
         override fun run() {
-            updateMaintenanceView()
+            ensureUi { updateMaintenanceViewInternal() }
             handler.postDelayed(this, 60000)
         }
     }
@@ -55,7 +58,7 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
                 SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key,
                 SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key
             )) {
-            updateMaintenanceView()
+            ensureUi { updateMaintenanceViewInternal() }
         }
     }
 
@@ -76,10 +79,14 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
         preferences.registerOnSharedPreferenceChangeListener(prefsListener)
         handler.post(timeUpdateRunnable)
 
-        updateMaintenanceView()
+        ensureUi { updateMaintenanceViewInternal() }
     }
 
-    private fun updateMaintenanceView() {
+    private fun ensureUi(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) block() else handler.post(block)
+    }
+
+    private fun updateMaintenanceViewInternal() {
         val enableWarning = preferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false)
         if (!enableWarning) {
             maintenanceTextView?.let {
@@ -140,7 +147,6 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
 
     override fun onDataChanged(key: String, value: String) {
         if (key == "car.basic.total_odometer") {
-            Log.w("InstrumentProjector", "Odometer updated: $value")
             currentKm = value.toInt()
         }
     }
