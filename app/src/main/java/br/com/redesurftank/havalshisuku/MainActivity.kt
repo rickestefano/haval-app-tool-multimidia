@@ -13,7 +13,9 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -35,6 +37,7 @@ import androidx.core.content.edit
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.utils.ShizukuUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -72,7 +75,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Configurações Básicas", "Telas", "Valores Atuais", "Informações")
+    val tabs = listOf("Configurações Básicas", "Telas", "Valores Atuais", "Instalar Aplicativos", "Informações")
     Column(modifier = modifier) {
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
@@ -85,7 +88,8 @@ fun MainScreen(modifier: Modifier = Modifier) {
             0 -> BasicSettingsTab()
             1 -> TelasTab()
             2 -> CurrentValuesTab()
-            3 -> InformacoesTab()
+            3 -> InstallAppsTab()
+            4 -> InformacoesTab()
         }
     }
 }
@@ -591,6 +595,105 @@ fun CurrentValuesTab() {
 }
 
 @Composable
+fun InstallAppsTab() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* Permission requested, user will return */ }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var installResult by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Button(onClick = { showConfirmDialog = true }) {
+            Text("Instalar via Apk")
+        }
+        if (installResult.isNotEmpty()) {
+            Text(installResult)
+        }
+        Text("Aplicativos disponíveis:")
+        LazyColumn {
+            item {
+                Text("Nenhum aplicativo disponível")
+            }
+        }
+    }
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Confirmação") },
+            text = { Text("O APK será copiado de /data/local/tmp/application.apk e instalado. Continuar?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirmDialog = false
+                    scope.launch {
+                        try {
+                            val targetDir = context.getExternalFilesDir(null)
+                            val targetFile = File(targetDir, "application.apk")
+                            val command = arrayOf("cp", "/data/local/tmp/application.apk", targetFile.absolutePath)
+                            val output = ShizukuUtils.runCommandAndGetOutput(command)
+                            if (output.contains("error", ignoreCase = true) || !targetFile.exists()) {
+                                installResult = "Erro na cópia: $output"
+                                return@launch
+                            }
+                            if (!context.packageManager.canRequestPackageInstalls()) {
+                                showPermissionDialog = true
+                                return@launch
+                            }
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", targetFile)
+                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(installIntent)
+                            installResult = "Instalação iniciada."
+                        } catch (e: Exception) {
+                            installResult = "Exceção: ${e.message}"
+                        }
+                    }
+                }) {
+                    Text("Continuar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("Permissão necessária") },
+            text = { Text("Permita a instalação de apps de fontes desconhecidas.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    requestPermissionLauncher.launch(intent)
+                }) {
+                    Text("Configurações")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+}
+
+@Composable
 fun InformacoesTab() {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
@@ -611,6 +714,10 @@ fun InformacoesTab() {
     var downloadError by remember { mutableStateOf<String?>(null) }
     var downloadJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* Permission requested */ }
+    var showPermissionDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -720,6 +827,12 @@ fun InformacoesTab() {
                 }
                 isDownloading = false
                 withContext(Dispatchers.Main) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (!context.packageManager.canRequestPackageInstalls()) {
+                            showPermissionDialog = true
+                            return@withContext
+                        }
+                    }
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/vnd.android.package-archive")
@@ -873,6 +986,30 @@ fun InformacoesTab() {
             },
             dismissButton = {
                 TextButton(onClick = { downloadError = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("Permissão necessária") },
+            text = { Text("Permita a instalação de apps de fontes desconhecidas.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    requestPermissionLauncher.launch(intent)
+                }) {
+                    Text("Configurações")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
                     Text("Cancelar")
                 }
             }

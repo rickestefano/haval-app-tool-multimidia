@@ -29,7 +29,7 @@ public class FridaUtils {
 
     public enum ScriptProcess {
         INTELLIGENT_VEHICLE_CONTROL("com.beantechs.accountservice:remote", R.raw.com_beantechs_accountservice, InjectMode.OPTIONAL),
-        SYSTEM_SERVER("system_server", R.raw.system_server, InjectMode.OPTIONAL),
+        SYSTEM_SERVER("system_server", R.raw.system_server, InjectMode.MANUAL),
         TS_CAR_POWER_CONTROLLER("com.ts.car.power.controller.core", R.raw.com_ts_car_power_controller_core, InjectMode.OPTIONAL),
         ;// Add more processes as needed
 
