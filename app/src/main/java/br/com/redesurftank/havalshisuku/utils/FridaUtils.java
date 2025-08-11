@@ -2,19 +2,14 @@ package br.com.redesurftank.havalshisuku.utils;
 
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import br.com.redesurftank.App;
-import br.com.redesurftank.havalshisuku.models.CommandListener;
 import br.com.redesurftank.havalshisuku.R;
-import kotlin.Unit;
+import br.com.redesurftank.havalshisuku.models.CommandListener;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;
 
@@ -46,7 +41,7 @@ public class FridaUtils {
         ScriptProcess(String process, int resourceId, InjectMode injectMode) {
             this.process = process;
             this.resourceId = resourceId;
-            this.baseName = process.substring(process.lastIndexOf('.') + 1);
+            this.baseName = process.substring(process.lastIndexOf('.') + 1).replace(":", "_");
             this.fileName = baseName + ".js";
             this.scriptPath = SCRIPT_DIR + fileName;
             this.injectMode = injectMode;
@@ -71,6 +66,10 @@ public class FridaUtils {
         public InjectMode getInjectMode() {
             return injectMode;
         }
+
+        public String getBaseName() {
+            return baseName;
+        }
     }
 
     public static boolean ensureFridaServerRunning() {
@@ -78,21 +77,28 @@ public class FridaUtils {
         try {
             if (!extractFridaFiles())
                 return false;
-            shizukuService.newProcess(new String[] {"setenforce", "0"}, null, null).waitFor();
+            shizukuService.newProcess(new String[]{"setenforce", "0"}, null, null).waitFor();
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_SERVER_PATH}, null, null).waitFor();
             shizukuService.newProcess(new String[]{"chmod", "755", FRIDA_INJECTOR_PATH}, null, null).waitFor();
-            var isRunning = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
+            String isRunning = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
             if (!isRunning.isEmpty()) {
-                Log.w(TAG, "Frida server is running with pid: " + isRunning + ". Killing it to restart.");
-                ShizukuUtils.runCommandAndGetOutput(new String[]{"pkill", "-f", "fridaserver"});
+                Log.w(TAG, "Frida server is already running with pid: " + isRunning);
+                return true;
             }
-            shizukuService.newProcess(new String[]{FRIDA_SERVER_PATH}, null, null);
+            String shellCmd = "setsid " + FRIDA_SERVER_PATH + " >/dev/null 2>&1 < /dev/null &";
+            shizukuService.newProcess(new String[]{"/bin/sh", "-c", shellCmd}, null, null).waitFor();
+            Thread.sleep(1000);
+            String after = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
+            if (!after.isEmpty()) {
+                return true;
+            } else {
+                Log.e(TAG, "Failed to start Frida server");
+                return false;
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error ensuring Frida server is running", e);
             return false;
         }
-
-        return true;
     }
 
     public static boolean injectAllScripts() {
@@ -101,11 +107,11 @@ public class FridaUtils {
         for (ScriptProcess sp : ScriptProcess.values()) {
             switch (sp.getInjectMode()) {
                 case NECESSARY:
-                    if (!injectScript(sp.getScriptPath(), sp.getProcess(), true))
+                    if (!injectScript(sp.getScriptPath(), sp.getProcess(), sp.getBaseName(), true))
                         return false;
                     break;
                 case OPTIONAL:
-                    injectScript(sp.getScriptPath(), sp.getProcess(), false);
+                    injectScript(sp.getScriptPath(), sp.getProcess(), sp.getBaseName(), false);
                     break;
                 case MANUAL:
                     // Do nothing
@@ -116,30 +122,51 @@ public class FridaUtils {
     }
 
     public static boolean injectScript(ScriptProcess scriptProcess, boolean synchronous) {
-        return injectScript(scriptProcess.getScriptPath(), scriptProcess.getProcess(), synchronous);
+        return injectScript(scriptProcess.getScriptPath(), scriptProcess.getProcess(), scriptProcess.getBaseName(), synchronous);
     }
 
     public static void injectSystemServer() {
-        injectScript(ScriptProcess.SYSTEM_SERVER.getScriptPath(), ScriptProcess.SYSTEM_SERVER.getProcess(), false);
+        injectScript(ScriptProcess.SYSTEM_SERVER.getScriptPath(), ScriptProcess.SYSTEM_SERVER.getProcess(), ScriptProcess.SYSTEM_SERVER.getBaseName(), false);
     }
 
-    private static boolean injectScript(String scriptPath, String targetProcess, boolean synchronous) {
-        Log.w(TAG, "Injecting Frida script: " + scriptPath + " into process: " + targetProcess);
+    private static boolean injectScript(String scriptPath, String targetProcess, String baseName, boolean synchronous) {
+        Log.w(TAG, "Handling Frida script injection for: " + scriptPath + " into process: " + targetProcess);
         String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
         if (pid.isEmpty()) {
             Log.e(TAG, "Target process not found: " + targetProcess);
             if (synchronous) {
                 return false;
             } else {
-                startPoller(scriptPath, targetProcess);
+                startPoller(scriptPath, targetProcess, baseName);
                 return true;
             }
         }
-        Log.w(TAG, "Injecting Frida script: " + scriptPath + " into PID: " + pid);
-
-        CountDownLatch latch = synchronous ? new CountDownLatch(1) : null;
-        AtomicInteger exitCodeAtomic = synchronous ? new AtomicInteger(-1) : null;
-
+        Log.w(TAG, "Target process PID: " + pid);
+        String logFile = SCRIPT_DIR + baseName + ".log";
+        String injectorCmd = FRIDA_INJECTOR_PATH + " -p " + pid + " -s " + scriptPath;
+        String injectorPattern = "[f]ridainjector -p " + pid + " -s " + scriptPath;
+        String grepOutput = ShizukuUtils.runCommandAndGetOutput(new String[]{"sh", "-c", "ps -A -f | grep '" + injectorPattern + "'"});
+        boolean isInjected = !grepOutput.trim().isEmpty();
+        if (!isInjected) {
+            Log.w(TAG, "InjectorPattern: " + injectorPattern);
+            Log.w(TAG, "Injecting Frida script into " + targetProcess + " with command: " + injectorCmd);
+            String shellCmd = "setsid " + injectorCmd + " > " + logFile + " 2>&1 < /dev/null &";
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"/bin/sh", "-c", shellCmd});
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted during sleep", e);
+                if (synchronous) return false;
+            }
+            grepOutput = ShizukuUtils.runCommandAndGetOutput(new String[]{"sh", "-c", "ps -A -f | grep '" + injectorPattern + "'"});
+            isInjected = !grepOutput.trim().isEmpty();
+            if (!isInjected) {
+                Log.e(TAG, "Failed to start Frida injection into " + targetProcess);
+                if (synchronous) return false;
+            }
+        } else {
+            Log.w(TAG, "Frida script already injected into " + targetProcess);
+        }
         CommandListener listener = new CommandListener() {
             @Override
             public void onStdout(String line) {
@@ -153,33 +180,20 @@ public class FridaUtils {
 
             @Override
             public void onFinished(int exitCode) {
-                Log.w(TAG, "[Target: " + targetProcess + "] Frida script finished with exit code: " + exitCode);
-                if (synchronous) {
-                    exitCodeAtomic.set(exitCode);
-                    latch.countDown();
-                }
+                Log.w(TAG, "[Target: " + targetProcess + "] Tail finished with exit code: " + exitCode);
             }
         };
-        ShizukuUtils.runCommandOnBackground(new String[]{FRIDA_INJECTOR_PATH, "-p", pid, "-s", scriptPath}, listener);
-
-        if (synchronous) {
-            try {
-                latch.await();
-                return exitCodeAtomic.get() == 0;
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Interrupted while waiting for injection", e);
-                return false;
-            }
-        }
+        ShizukuUtils.runCommandOnBackground(new String[]{"tail", "-f", logFile}, listener);
+        Log.w(TAG, "Started tail for " + logFile);
         return true;
     }
 
-    private static void startPoller(String scriptPath, String targetProcess) {
+    private static void startPoller(String scriptPath, String targetProcess, String baseName) {
         new Thread(() -> {
             while (true) {
                 String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
                 if (!pid.isEmpty()) {
-                    injectScript(scriptPath, targetProcess, false);
+                    injectScript(scriptPath, targetProcess, baseName, false);
                     break;
                 }
                 try {

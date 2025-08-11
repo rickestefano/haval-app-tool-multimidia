@@ -11,8 +11,6 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService;
 import com.beantechs.voice.adapter.IBinderPool;
@@ -35,7 +33,6 @@ import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
-import rikka.shizuku.SystemServiceHelper;
 
 @SuppressLint("PrivateApi")
 public class ServiceManager {
@@ -457,8 +454,15 @@ public class ServiceManager {
             Log.w(TAG, "Frida server is running, injecting scripts...");
             if (!FridaUtils.injectAllScripts())
                 return false;
-            if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.getKey(), false))
-                FridaUtils.injectSystemServer();
+            if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.getKey(), false)) {
+                backgroundHandler.postDelayed(() -> {
+                    try {
+                        FridaUtils.injectSystemServer();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error injecting into system_server", e);
+                    }
+                }, 10000);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error during Frida script injection", e);
             return false;

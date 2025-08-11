@@ -19,7 +19,7 @@ public class DispatchAllDatasReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         long startTime = System.currentTimeMillis();
         Log.w(TAG, "Starting to dispatch all data");
-        ServiceManager.getInstance().dispatchAllData();
+        ServiceManager.getInstance().executeWithServicesRunning(() -> ServiceManager.getInstance().dispatchAllData());
         long endTime = System.currentTimeMillis();
         Log.w(TAG, "Finished dispatching all data in " + (endTime - startTime) + " ms");
     }

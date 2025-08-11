@@ -228,7 +228,21 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
             Log.w(TAG, "ADB is already running");
         }
         ShizukuUtils.runCommandAndGetOutput(new String[]{"echo", "60", ">", "/proc/sys/vm/swappiness"});
-        IPTablesUtils.unlockOutputAll();
+        try {
+            backgroundHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (!IPTablesUtils.unlockOutputAll())
+                            backgroundHandler.postDelayed(this, 1000);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error unlocking iptables: " + e.getMessage(), e);
+                    }
+                }
+            }, 1000);
+        } catch (Exception e) {
+            Log.e(TAG, "Error unlocking iptables: " + e.getMessage(), e);
+        }
         boolean initSuccess = ServiceManager.getInstance().initializeServices(getApplicationContext());
         if (!initSuccess) {
             Log.e(TAG, "Service initialization failed, restarting...");
