@@ -296,6 +296,7 @@ fun BasicSettingsTab() {
 fun FridaHooksTab() {
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var enableFridaHooks by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false)) }
+    var enableFridaHookSystemServer by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.key, false)) }
     var showFridaDialog by remember { mutableStateOf(false) }
     var showManualDialog by remember { mutableStateOf(false) }
     Column(
@@ -319,6 +320,19 @@ fun FridaHooksTab() {
             )
             Spacer(Modifier.width(8.dp))
             Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.description)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = enableFridaHookSystemServer,
+                onCheckedChange = { newValue ->
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.key, newValue) }
+                    enableFridaHookSystemServer = newValue;
+                    if (newValue)
+                        FridaUtils.injectSystemServer()
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.description)
         }
         Button(onClick = { showManualDialog = true }) {
             Text("Injetar Código Manual")

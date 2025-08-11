@@ -13,6 +13,7 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     NIGHT_END_MINUTE("nightEndMinute", "Minuto de fim da noite"),
     ENABLE_AUTO_BRIGHTNESS("enableAutoBrightness", "Habilitar ajuste automático de brilho"),
     ENABLE_FRIDA_HOOKS("enableFridaHooks", "Habilitar hooks do Frida"),
+    ENABLE_FRIDA_HOOK_SYSTEM_SERVER("enableFridaHookSystemServer", "Habilitar hooks do Frida no System Server"),
     ENABLE_INSTRUMENT_PROJECTOR("enableInstrumentProjector", "Habilitar dados no painel de instrumentos"),
     ENABLE_INSTRUMENT_REVISION_WARNING("enableInstrumentRevisionWarning", "Habilitar aviso de revisão no painel de instrumentos"),
     INSTRUMENT_REVISION_KM("instrumentRevisionKm", "Quilometragem para aviso de revisão no painel de instrumentos"),

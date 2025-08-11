@@ -278,7 +278,7 @@ public class ServiceManager {
         return new HashMap<>(dataCache);
     }
 
-    private void OnDataChanged( String key, String value) {
+    private void OnDataChanged(String key, String value) {
         Intent broadcastIntent = new Intent("android.intent.haval." + key);
         broadcastIntent.putExtra("value", value);
         App.getContext().sendBroadcast(broadcastIntent);
@@ -457,6 +457,8 @@ public class ServiceManager {
             Log.w(TAG, "Frida server is running, injecting scripts...");
             if (!FridaUtils.injectAllScripts())
                 return false;
+            if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.getKey(), false))
+                FridaUtils.injectSystemServer();
         } catch (Exception e) {
             Log.e(TAG, "Error during Frida script injection", e);
             return false;

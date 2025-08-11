@@ -2,6 +2,8 @@ package br.com.redesurftank.havalshisuku.utils;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.models.CommandListener;
 import br.com.redesurftank.havalshisuku.R;
+import kotlin.Unit;
 import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;
 
@@ -116,6 +119,10 @@ public class FridaUtils {
         return injectScript(scriptProcess.getScriptPath(), scriptProcess.getProcess(), synchronous);
     }
 
+    public static void injectSystemServer() {
+        injectScript(ScriptProcess.SYSTEM_SERVER.getScriptPath(), ScriptProcess.SYSTEM_SERVER.getProcess(), false);
+    }
+
     private static boolean injectScript(String scriptPath, String targetProcess, boolean synchronous) {
         Log.w(TAG, "Injecting Frida script: " + scriptPath + " into process: " + targetProcess);
         String pid = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", targetProcess}).trim();
@@ -184,7 +191,7 @@ public class FridaUtils {
         }).start();
     }
 
-    public static boolean extractFridaScripts() {
+    private static boolean extractFridaScripts() {
         try {
             String destDir = App.getContext().getCacheDir().getAbsolutePath();
 
@@ -212,7 +219,7 @@ public class FridaUtils {
         return true;
     }
 
-    public static boolean extractFridaFiles() {
+    private static boolean extractFridaFiles() {
         try {
             String destDir = App.getContext().getCacheDir().getAbsolutePath();
             InputStream in = App.getContext().getResources().openRawResource(R.raw.fridaserver);

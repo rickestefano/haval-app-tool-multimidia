@@ -227,6 +227,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
         } else {
             Log.w(TAG, "ADB is already running");
         }
+        ShizukuUtils.runCommandAndGetOutput(new String[]{"echo", "60", ">", "/proc/sys/vm/swappiness"});
         IPTablesUtils.unlockOutputAll();
         boolean initSuccess = ServiceManager.getInstance().initializeServices(getApplicationContext());
         if (!initSuccess) {
