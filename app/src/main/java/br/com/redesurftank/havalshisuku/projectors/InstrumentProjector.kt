@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
 
 class InstrumentProjector(outerContext: Context, display: Display) : Presentation(outerContext, display), IDataChanged {
-    private val preferences: SharedPreferences = App.getContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    private val preferences: SharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private val serviceManager: ServiceManager = ServiceManager.getInstance()
     private val handler = Handler(Looper.getMainLooper())
 

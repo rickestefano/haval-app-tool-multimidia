@@ -9,6 +9,7 @@ import br.com.redesurftank.havalshisuku.services.ForegroundService;
 public class App extends Application {
 
     private static Application sApplication;
+    private static Context deviceProtectedContext;
 
     public static Application getApplication() {
         return sApplication;
@@ -16,6 +17,13 @@ public class App extends Application {
 
     public static Context getContext() {
         return getApplication().getApplicationContext();
+    }
+
+    public synchronized static Context getDeviceProtectedContext() {
+        if (deviceProtectedContext == null) {
+            deviceProtectedContext = getApplication().createDeviceProtectedStorageContext();
+        }
+        return deviceProtectedContext;
     }
 
     @Override

@@ -34,10 +34,12 @@ import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
+import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils
+import br.com.redesurftank.havalshisuku.utils.FridaUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -74,8 +76,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
+    val tabs = if (advancedUse) {
+        listOf("Configurações Básicas", "Telas", "Valores Atuais", "Instalar Aplicativos", "Informações", "Frida Hooks")
+    } else {
+        listOf("Configurações Básicas", "Telas", "Valores Atuais", "Instalar Aplicativos", "Informações")
+    }
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Configurações Básicas", "Telas", "Valores Atuais", "Instalar Aplicativos", "Informações")
     Column(modifier = modifier) {
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
@@ -90,6 +98,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
             2 -> CurrentValuesTab()
             3 -> InstallAppsTab()
             4 -> InformacoesTab()
+            5 -> FridaHooksTab()
         }
     }
 }
@@ -97,8 +106,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
 @Composable
 fun BasicSettingsTab() {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
-    val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var disableMonitoring by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, false)) }
     var disableAvas by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, false)) }
     var disableAvmCarStopped by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, false)) }
@@ -114,8 +122,6 @@ fun BasicSettingsTab() {
     var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
-    var enableFridaHooks by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false)) }
-    var showFridaDialog by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -241,23 +247,6 @@ fun BasicSettingsTab() {
                 }
             }
         }
-        if (advancedUse) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = enableFridaHooks,
-                    onCheckedChange = { newValue ->
-                        if (!newValue) {
-                            enableFridaHooks = false
-                            prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false) }
-                        } else {
-                            showFridaDialog = true
-                        }
-                    }
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.description)
-            }
-        }
     }
     if (showStartPicker) {
         LaunchedEffect(Unit) {
@@ -301,6 +290,40 @@ fun BasicSettingsTab() {
             dialog.show()
         }
     }
+}
+
+@Composable
+fun FridaHooksTab() {
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    var enableFridaHooks by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false)) }
+    var showFridaDialog by remember { mutableStateOf(false) }
+    var showManualDialog by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = enableFridaHooks,
+                onCheckedChange = { newValue ->
+                    if (!newValue) {
+                        enableFridaHooks = false
+                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.key, false) }
+                    } else {
+                        showFridaDialog = true
+                    }
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.description)
+        }
+        Button(onClick = { showManualDialog = true }) {
+            Text("Injetar Código Manual")
+        }
+    }
     if (showFridaDialog) {
         AlertDialog(
             onDismissRequest = { showFridaDialog = false },
@@ -323,12 +346,37 @@ fun BasicSettingsTab() {
             }
         )
     }
+    if (showManualDialog) {
+        AlertDialog(
+            onDismissRequest = { showManualDialog = false },
+            title = { Text("Hooks Manuais") },
+            text = {
+                val manuals = FridaUtils.ScriptProcess.entries.filter { it.injectMode == FridaUtils.InjectMode.MANUAL }
+                LazyColumn {
+                    items(manuals) { script ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(script.getProcess())
+                            Spacer(Modifier.width(8.dp))
+                            Button(onClick = { FridaUtils.injectScript(script, false) }) {
+                                Text("Injetar")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showManualDialog = false }) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun TelasTab() {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var enableProjector by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, false)) }
     var enableWarning by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false)) }
     var nextKmText by remember { mutableStateOf(prefs.getInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, 12000).toString()) }
@@ -445,8 +493,7 @@ fun TelasTab() {
 
 @Composable
 fun CurrentValuesTab() {
-    val context = LocalContext.current
-    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
     val dataMap = remember {
         mutableStateMapOf<String, String>().apply {
@@ -696,7 +743,7 @@ fun InstallAppsTab() {
 @Composable
 fun InformacoesTab() {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var isActive by remember { mutableStateOf(ServiceManager.getInstance().isServicesInitialized) }
     var formattedTime by remember { mutableStateOf("Não inicializado") }
     var formattedTime2 by remember { mutableStateOf("Não inicializado") }

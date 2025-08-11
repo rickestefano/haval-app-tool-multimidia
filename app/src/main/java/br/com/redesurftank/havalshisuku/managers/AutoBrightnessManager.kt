@@ -22,7 +22,7 @@ class AutoBrightnessManager private constructor() {
         }
     }
 
-    private val prefs = App.getContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    private val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private val alarmManager = App.getContext().getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     fun setEnabled(enabled: Boolean) {

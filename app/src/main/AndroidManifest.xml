@@ -65,11 +65,11 @@
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".broadcastReceivers.CustomStartReceiver"
+            android:name=".broadcastReceivers.ManualStartFridaReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="br.com.redesurftank.havalshisuku.ACTION_START_SERVICE" />
+                <action android:name="br.com.redesurftank.havalshisuku.FRIDA_START" />
             </intent-filter>
         </receiver>
         <receiver

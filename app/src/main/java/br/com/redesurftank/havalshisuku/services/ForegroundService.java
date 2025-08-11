@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.DeadSystemException;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -58,71 +59,86 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
             Log.w(TAG, "Service is already running, skipping start.");
             return START_STICKY; // Retorna imediatamente se o serviço já estiver rodando
         }
-        isServiceRunning = true; // Marca o serviço como rodando
-        Log.w(TAG, "Service started");
-        var context = getApplicationContext();
-        // Criar notificação para o Foreground Service
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle("Aplicação em execução").setContentText("Seu app está rodando em segundo plano").setSmallIcon(android.R.drawable.ic_notification_overlay) // Ícone de notificação
-                .build();
-
-        startForeground(NOTIFICATION_ID, notification);
-
         try {
-            var selfPackageInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
-            if (selfPackageInfo.uid > 10999) {
-                // Se o UID for maior que 10999, significa que o aplicativo não tem acesso direto a conectar via telnet. O que impossibilita o start automatizado do Shizuku.
-                Log.w(TAG, "Application UID is greater than 10999, Shizuku cannot be started automatically.");
-                //show a toast to inform the user
-                Toast.makeText(context, "O aplicativo não foi instalado utilizando o exploit corretamente, por favor, reinstale o aplicativo utilizando o exploit correto para que o Shizuku possa ser iniciado automaticamente.", Toast.LENGTH_LONG).show();
-                return START_NOT_STICKY;
+            isServiceRunning = true; // Marca o serviço como rodando
+            Log.w(TAG, "Service started");
+            var context = getApplicationContext();
+            // Criar notificação para o Foreground Service
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle("Aplicação em execução").setContentText("Seu app está rodando em segundo plano").setSmallIcon(android.R.drawable.ic_notification_overlay) // Ícone de notificação
+                    .build();
+
+            startForeground(NOTIFICATION_ID, notification);
+
+            try {
+                var selfPackageInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
+                if (selfPackageInfo.uid > 10999) {
+                    // Se o UID for maior que 10999, significa que o aplicativo não tem acesso direto a conectar via telnet. O que impossibilita o start automatizado do Shizuku.
+                    Log.w(TAG, "Application UID is greater than 10999, Shizuku cannot be started automatically.");
+                    //show a toast to inform the user
+                    Toast.makeText(context, "O aplicativo não foi instalado utilizando o exploit corretamente, por favor, reinstale o aplicativo utilizando o exploit correto para que o Shizuku possa ser iniciado automaticamente.", Toast.LENGTH_LONG).show();
+                    return START_NOT_STICKY;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
-        }
 
-        var sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
-        var shizukuLibLocation = sharedPreferences.getString("shizuku_lib_location", "");
+            var sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
+            var shizukuLibLocation = sharedPreferences.getString("shizuku_lib_location", "");
 
-        backgroundHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    var telnetClient = new TelnetClientWrapper();
-                    telnetClient.connect("127.0.0.1", 23);
-                    String filePath = "";
-                    if (shizukuLibLocation.isEmpty()) {
-                        String findCommand = "find /data/app -name libshizuku.so";
-                        filePath = telnetClient.executeCommand(findCommand);
+            final Runnable timeoutRunnable = () -> {
+                if (!isShizukuInitialized) {
+                    Log.w(TAG, "Timeout waiting for Shizuku binder, restarting service...");
+                    restart();
+                }
+            };
 
-                        if (filePath.isEmpty()) {
-                            throw new RuntimeException("libshizuku.so not found");
+            backgroundHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        var telnetClient = new TelnetClientWrapper();
+                        telnetClient.connect("127.0.0.1", 23);
+                        String filePath = "";
+                        if (shizukuLibLocation.isEmpty()) {
+                            String findCommand = "find /data/app -name libshizuku.so";
+                            filePath = telnetClient.executeCommand(findCommand);
+
+                            if (filePath.isEmpty()) {
+                                throw new RuntimeException("libshizuku.so not found");
+                            }
+
+                            sharedPreferences.edit().putString("shizuku_lib_location", filePath).apply();
+                            Log.w(TAG, "libshizuku.so found at: " + filePath);
+                        } else {
+                            Log.w(TAG, "Using already configured Shizuku lib location: " + shizukuLibLocation);
+                            filePath = shizukuLibLocation;
                         }
 
-                        sharedPreferences.edit().putString("shizuku_lib_location", filePath).apply();
-                        Log.w(TAG, "libshizuku.so found at: " + filePath);
-                    } else {
-                        Log.w(TAG, "Using already configured Shizuku lib location: " + shizukuLibLocation);
-                        filePath = shizukuLibLocation;
-                    }
+                        String executeCommand = filePath;
+                        Log.w(TAG, "Executing command: " + executeCommand);
+                        String result = telnetClient.executeCommand(executeCommand);
+                        if (result.contains("killing old process")) {
+                            Log.w(TAG, "Old process killed, statically waiting 5 seconds to avoid bind on an already dead Shizuku process");
+                            // Espera o Shizuku reiniciar
+                            Thread.sleep(5000);
+                        }
+                        Log.w(TAG, "Command executed successfully: " + result);
 
-                    String executeCommand = filePath;
-                    Log.w(TAG, "Executing command: " + executeCommand);
-                    String result = telnetClient.executeCommand(executeCommand);
-                    if (result.contains("killing old process")) {
-                        Log.w(TAG, "Old process killed, statically waiting 5 seconds to avoid bind on an already dead Shizuku process");
-                        // Espera o Shizuku reiniciar
-                        Thread.sleep(5000);
+                        telnetClient.disconnect();
+                        Shizuku.addBinderReceivedListenerSticky(ForegroundService.this::shizukuBinderReceived);
+                        backgroundHandler.postDelayed(timeoutRunnable, 5000);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
+                        backgroundHandler.postDelayed(this, 1000);
                     }
-                    Log.w(TAG, "Command executed successfully: " + result);
-
-                    telnetClient.disconnect();
-                    Shizuku.addBinderReceivedListenerSticky(ForegroundService.this::shizukuBinderReceived);
-                } catch (Exception e) {
-                    Log.e(TAG, "Error executing shell commands: " + e.getMessage(), e);
-                    backgroundHandler.postDelayed(this, 1000);
                 }
-            }
-        });
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onStartCommand: " + e.getMessage(), e);
+            isServiceRunning = false; // Marca o serviço como não rodando em caso de erro
+            stopSelf(); // Para o serviço em caso de erro
+            return START_NOT_STICKY; // Não reinicia o serviço automaticamente
+        }
 
         return START_STICKY; // Garante que o serviço seja reiniciado se for morto
     }
@@ -131,6 +147,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
         Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
         Log.w(TAG, "Shizuku binder received");
         isShizukuInitialized = true;
+        backgroundHandler.removeCallbacksAndMessages(null); // Remove any pending timeouts
         checkService();
     }
 

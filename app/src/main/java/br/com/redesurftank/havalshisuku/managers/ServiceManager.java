@@ -134,7 +134,7 @@ public class ServiceManager {
         }
         timeStartInitialization = SystemClock.uptimeMillis();
         Log.w(TAG, "Initializing services with Shizuku");
-        sharedPreferences = context.getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
+        sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
         handlerThread = new HandlerThread("ServiceManagerHandlerThread");
         handlerThread.start();
         backgroundHandler = new Handler(handlerThread.getLooper());
