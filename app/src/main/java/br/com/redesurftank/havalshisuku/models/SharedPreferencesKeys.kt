@@ -21,6 +21,8 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     DISABLE_AVAS("disableAvas", "Desativar AVAS (sistema de alerta de veículo silencioso)"),
     DISABLE_AVM_CAR_STOPPED("disableAvmCarStopped", "Desativar camera AVM quando o carro está parado"),
     CAR_MONITOR_PROPERTIES("carMonitorProperties", "Propriedades do monitoramento do carro"),
+    BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK("bypassSelfInstallationIntegrityCheck", "Ignorar verificação de integridade da instalação"),
+    SELF_INSTALLATION_INTEGRITY_CHECK("selfInstallationIntegrityCheck", "Verificação de integridade da instalação"),
     ADVANCE_USE("advanceUse", "Uso avançado"),
     CURRENT_USER("currentUser", "Usuário atual"),
 }

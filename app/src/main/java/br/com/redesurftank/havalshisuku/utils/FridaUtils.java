@@ -1,11 +1,15 @@
 package br.com.redesurftank.havalshisuku.utils;
 
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.R;
@@ -87,14 +91,7 @@ public class FridaUtils {
             }
             String shellCmd = "setsid " + FRIDA_SERVER_PATH + " >/dev/null 2>&1 < /dev/null &";
             shizukuService.newProcess(new String[]{"/bin/sh", "-c", shellCmd}, null, null).waitFor();
-            Thread.sleep(1000);
-            String after = ShizukuUtils.runCommandAndGetOutput(new String[]{"pidof", "fridaserver"}).trim();
-            if (!after.isEmpty()) {
-                return true;
-            } else {
-                Log.e(TAG, "Failed to start Frida server");
-                return false;
-            }
+            return true;
         } catch (Exception e) {
             Log.e(TAG, "Error ensuring Frida server is running", e);
             return false;
@@ -152,18 +149,6 @@ public class FridaUtils {
             Log.w(TAG, "Injecting Frida script into " + targetProcess + " with command: " + injectorCmd);
             String shellCmd = "setsid " + injectorCmd + " > " + logFile + " 2>&1 < /dev/null &";
             ShizukuUtils.runCommandAndGetOutput(new String[]{"/bin/sh", "-c", shellCmd});
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Interrupted during sleep", e);
-                if (synchronous) return false;
-            }
-            grepOutput = ShizukuUtils.runCommandAndGetOutput(new String[]{"sh", "-c", "ps -A -f | grep '" + injectorPattern + "'"});
-            isInjected = !grepOutput.trim().isEmpty();
-            if (!isInjected) {
-                Log.e(TAG, "Failed to start Frida injection into " + targetProcess);
-                if (synchronous) return false;
-            }
         } else {
             Log.w(TAG, "Frida script already injected into " + targetProcess);
         }

@@ -22,11 +22,14 @@ import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
+import java.util.regex.Pattern;
+
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.DispatchAllDatasReceiver;
 import br.com.redesurftank.havalshisuku.broadcastReceivers.RestartReceiver;
 import br.com.redesurftank.havalshisuku.managers.ServiceManager;
 import br.com.redesurftank.havalshisuku.models.CommandListener;
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.utils.IPTablesUtils;
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
 import br.com.redesurftank.havalshisuku.utils.TelnetClientWrapper;
@@ -69,20 +72,25 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
             startForeground(NOTIFICATION_ID, notification);
 
-            try {
-                var selfPackageInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
-                if (selfPackageInfo.uid > 10999) {
-                    // Se o UID for maior que 10999, significa que o aplicativo não tem acesso direto a conectar via telnet. O que impossibilita o start automatizado do Shizuku.
-                    Log.w(TAG, "Application UID is greater than 10999, Shizuku cannot be started automatically.");
-                    //show a toast to inform the user
-                    Toast.makeText(context, "O aplicativo não foi instalado utilizando o exploit corretamente, por favor, reinstale o aplicativo utilizando o exploit correto para que o Shizuku possa ser iniciado automaticamente.", Toast.LENGTH_LONG).show();
-                    return START_NOT_STICKY;
+            var sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
+
+            if (!sharedPreferences.getBoolean(SharedPreferencesKeys.SELF_INSTALLATION_INTEGRITY_CHECK.getKey(), false) && !sharedPreferences.getBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.getKey(), false)) {
+                try {
+                    var selfPackageInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
+                    if (selfPackageInfo.uid > 10999) {
+                        // Se o UID for maior que 10999, significa que o aplicativo não tem acesso direto a conectar via telnet. O que impossibilita o start automatizado do Shizuku.
+                        Log.w(TAG, "Application UID is greater than 10999, Shizuku cannot be started automatically.");
+                        //show a toast to inform the user
+                        Toast.makeText(context, "O aplicativo não foi instalado utilizando o exploit corretamente, por favor, reinstale o aplicativo utilizando o exploit correto para que o Shizuku possa ser iniciado automaticamente.", Toast.LENGTH_LONG).show();
+                        return START_NOT_STICKY;
+                    } else {
+                        sharedPreferences.edit().putBoolean(SharedPreferencesKeys.SELF_INSTALLATION_INTEGRITY_CHECK.getKey(), true).apply();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to get application info: " + e.getMessage(), e);
             }
 
-            var sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
             var shizukuLibLocation = sharedPreferences.getString("shizuku_lib_location", "");
 
             final Runnable timeoutRunnable = () -> {
@@ -117,7 +125,8 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
                         String executeCommand = filePath;
                         Log.w(TAG, "Executing command: " + executeCommand);
                         String result = telnetClient.executeCommand(executeCommand);
-                        if (result.contains("killing old process")) {
+
+                        if (Pattern.compile("killed \\d+ \\(shizuku_server\\)").matcher(result).find()) {
                             Log.w(TAG, "Old process killed, statically waiting 5 seconds to avoid bind on an already dead Shizuku process");
                             // Espera o Shizuku reiniciar
                             Thread.sleep(5000);
@@ -144,6 +153,7 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
     }
 
     private synchronized void shizukuBinderReceived() {
+        if (!isServiceRunning) return;
         Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
         Log.w(TAG, "Shizuku binder received");
         isShizukuInitialized = true;
@@ -292,13 +302,15 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
     public void onBinderDead() {
         Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
         Shizuku.removeBinderDeadListener(this);
-        isShizukuInitialized = false;
-        isServiceRunning = false;
         Log.w(TAG, "Shizuku binder is dead, stopping service");
         restart();
     }
 
-    private void restart() {
+    private synchronized void restart() {
+        isShizukuInitialized = false;
+        isServiceRunning = false;
+        Shizuku.removeBinderReceivedListener(this::shizukuBinderReceived);
+        Shizuku.removeBinderDeadListener(this);
         Log.w(TAG, "Restarting service...");
         Intent broadcastIntent = new Intent(this, RestartReceiver.class);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, broadcastIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

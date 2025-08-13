@@ -107,6 +107,9 @@ fun MainScreen(modifier: Modifier = Modifier) {
 fun BasicSettingsTab() {
     val context = LocalContext.current
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
+    var isAdvancedUse by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)) }
+    var selfInstallationCheck by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.SELF_INSTALLATION_INTEGRITY_CHECK.key, false)) }
+    var bypassSelfInstallationCheck by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.key, false)) }
     var disableMonitoring by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, false)) }
     var disableAvas by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, false)) }
     var disableAvmCarStopped by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, false)) }
@@ -129,6 +132,19 @@ fun BasicSettingsTab() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        if(isAdvancedUse && !selfInstallationCheck) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = bypassSelfInstallationCheck,
+                    onCheckedChange = {
+                        bypassSelfInstallationCheck = it
+                        prefs.edit { putBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.key, it) }
+                    }
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.description)
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = disableMonitoring,
@@ -759,6 +775,8 @@ fun InformacoesTab() {
     val context = LocalContext.current
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var isActive by remember { mutableStateOf(ServiceManager.getInstance().isServicesInitialized) }
+    var bypassSelfInstallationCheck by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.key, false)) }
+    var selfInstallationCheck by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.SELF_INSTALLATION_INTEGRITY_CHECK.key, false)) }
     var formattedTime by remember { mutableStateOf("Não inicializado") }
     var formattedTime2 by remember { mutableStateOf("Não inicializado") }
     var formattedTime3 by remember { mutableStateOf("Não inicializado") }
@@ -888,11 +906,9 @@ fun InformacoesTab() {
                 }
                 isDownloading = false
                 withContext(Dispatchers.Main) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (!context.packageManager.canRequestPackageInstalls()) {
-                            showPermissionDialog = true
-                            return@withContext
-                        }
+                    if (!context.packageManager.canRequestPackageInstalls()) {
+                        showPermissionDialog = true
+                        return@withContext
                     }
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -916,6 +932,9 @@ fun InformacoesTab() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if(!bypassSelfInstallationCheck) {
+            Text("Instalado corretamente: ${if (selfInstallationCheck) "Sim" else "Não"}")
+        }
         Text("Estado: ${if (isActive) "Ativo" else "Inativo"}")
         if (isActive) {
             Text("Tempo para receber BOOT_COMPLETED: $formattedTime")
