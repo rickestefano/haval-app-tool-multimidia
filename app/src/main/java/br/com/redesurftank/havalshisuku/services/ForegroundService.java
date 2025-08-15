@@ -11,7 +11,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.DeadSystemException;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -188,65 +187,106 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
         Log.w(TAG, "Shizuku initialized and permission granted, starting services...");
 
-        //check if Termux is installed
-        var isTermuxInstalled = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "list", "packages", "com.termux"}).trim().isEmpty();
-        if (isTermuxInstalled) {
-            var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
-            if (!isSSHRunning) {
-                Log.w(TAG, "SSHD is not running, starting it now...");
-                TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
+        try {
+            var isTermuxInstalled = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "list", "packages", "com.termux"}).trim().isEmpty();
+            if (isTermuxInstalled) {
+                var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
+                if (!isSSHRunning) {
+                    Log.w(TAG, "SSHD is not running, starting it now...");
+                    TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
+                        @Override
+                        public void onStdout(String line) {
+                            Log.w(TAG, "SSHD Output: " + line);
+                        }
+
+                        @Override
+                        public void onStderr(String line) {
+                            Log.e(TAG, "SSHD Error: " + line);
+                        }
+
+                        @Override
+                        public void onFinished(int exitCode) {
+                            Log.w(TAG, "SSHD finished with exit code: " + exitCode);
+                        }
+                    });
+                } else {
+                    Log.w(TAG, "SSHD is already running");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking Termux installation: " + e.getMessage(), e);
+        }
+
+        try {
+            var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
+            if (!isADBRunning) {
+                Log.w(TAG, "ADB is not running, starting it now...");
+                ShizukuUtils.runCommandOnBackground(new String[]{"start", "adbd"}, new CommandListener() {
                     @Override
                     public void onStdout(String line) {
-                        Log.w(TAG, "SSHD Output: " + line);
+                        Log.w(TAG, "ADB Output: " + line);
                     }
 
                     @Override
                     public void onStderr(String line) {
-                        Log.e(TAG, "SSHD Error: " + line);
+                        Log.e(TAG, "ADB Error: " + line);
                     }
 
                     @Override
                     public void onFinished(int exitCode) {
-                        Log.w(TAG, "SSHD finished with exit code: " + exitCode);
+                        Log.w(TAG, "ADB finished with exit code: " + exitCode);
                     }
                 });
             } else {
-                Log.w(TAG, "SSHD is already running");
+                Log.w(TAG, "ADB is already running");
             }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking ADB status: " + e.getMessage(), e);
         }
 
-        var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
-        if (!isADBRunning) {
-            Log.w(TAG, "ADB is not running, starting it now...");
-            ShizukuUtils.runCommandOnBackground(new String[]{"start", "adbd"}, new CommandListener() {
-                @Override
-                public void onStdout(String line) {
-                    Log.w(TAG, "ADB Output: " + line);
-                }
-
-                @Override
-                public void onStderr(String line) {
-                    Log.e(TAG, "ADB Error: " + line);
-                }
-
-                @Override
-                public void onFinished(int exitCode) {
-                    Log.w(TAG, "ADB finished with exit code: " + exitCode);
-                }
-            });
-        } else {
-            Log.w(TAG, "ADB is already running");
+        try {
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"echo", "60", ">", "/proc/sys/vm/swappiness"});
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting swappiness: " + e.getMessage(), e);
         }
-        ShizukuUtils.runCommandAndGetOutput(new String[]{"echo", "60", ">", "/proc/sys/vm/swappiness"});
+
+        var successFirstUnlockIpTables = false;
+
+        try {
+            if (IPTablesUtils.unlockInputOutputAll()) {
+                Log.w(TAG, "IPTables unlocked successfully");
+                successFirstUnlockIpTables = true;
+            } else {
+                Log.e(TAG, "Failed to unlock IPTables");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error unlocking IPTables: " + e.getMessage(), e);
+        }
+
+        var finalSuccessFirstUnlockIpTables = successFirstUnlockIpTables;
+
         try {
             backgroundHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
+                    Log.w(TAG, "Background to keep unlocking iptables");
                     try {
-                        if (!IPTablesUtils.unlockOutputAll())
-                            backgroundHandler.postDelayed(this, 1000);
+                        var isSuccess = IPTablesUtils.unlockInputOutputAll();
+                        if (!finalSuccessFirstUnlockIpTables) {
+                            if (isSuccess) {
+                                Log.w(TAG, "IPTables unlocked successfully on retry");
+                            } else {
+                                Log.e(TAG, "Failed to unlock IPTables on retry");
+                            }
+                        }
+                        if (isSuccess) {
+                            backgroundHandler.postDelayed(this, 15000);
+                        } else {
+                            backgroundHandler.postDelayed(this, 5000);
+                        }
                     } catch (Exception e) {
                         Log.e(TAG, "Error unlocking iptables: " + e.getMessage(), e);
+                        backgroundHandler.postDelayed(this, 5000);
                     }
                 }
             }, 1000);
