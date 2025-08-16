@@ -16,10 +16,16 @@ import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IDvr;
 import com.beantechs.voice.adapter.IVehicle;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import org.intellij.lang.annotations.Language;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +78,9 @@ public class ServiceManager {
             CarConstants.SYS_SETTINGS_AUDIO_MEDIA_VOLUME,
             CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
             CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL
+    };
+    private static final CarConstants[] KEYS_TO_SAVE = {
+            CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE
     };
     private static ServiceManager instance;
     private final List<IDataChanged> dataChangedListeners;
@@ -142,8 +151,16 @@ public class ServiceManager {
 
         try {
             IBinder controlBinder = new ShizukuBinderWrapper(getSystemService("com.beantechs.intelligentvehiclecontrol"));
+            if (!controlBinder.pingBinder()) {
+                Log.e(TAG, "IntelligentVehicleControlService binder not alive");
+                return false;
+            }
             controlService = IIntelligentVehicleControlService.Stub.asInterface(controlBinder);
             IBinder poolBinder = new ShizukuBinderWrapper(getSystemService("com.beantechs.voice.adapter.VoiceAdapterService"));
+            if (!poolBinder.pingBinder()) {
+                Log.e(TAG, "IBinderPool binder not alive");
+                return false;
+            }
             IBinderPool pool = IBinderPool.Stub.asInterface(poolBinder);
             IBinder vehicleBinder = pool.queryBinder(6);
             vehicle = IVehicle.Stub.asInterface(new ShizukuBinderWrapper(vehicleBinder));
@@ -259,6 +276,21 @@ public class ServiceManager {
         }
     }
 
+    public String getUpdatedData(String key) {
+        if (controlService == null) {
+            Log.e(TAG, "ControlService not initialized");
+            return null;
+        }
+        try {
+            String value = controlService.fetchData(key);
+            dataCache.put(key, value);
+            return value;
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error fetching data", e);
+            return null;
+        }
+    }
+
     public void updateData(String key, String value) {
         if (controlService == null) {
             Log.e(TAG, "ControlService not initialized");
@@ -334,10 +366,18 @@ public class ServiceManager {
                 }
             } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f) {
                 dvr.setAVM(0);
+            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false)) {
+                dvr.setAVM(0);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);
         }
+    }
+
+    public boolean isTurnLightOn() {
+        var leftTurnLight = getData(CarConstants.CAR_BASIC_LEFT_TURN_SWITCH_STATUS.getValue());
+        var rightTurnLight = getData(CarConstants.CAR_BASIC_RIGHT_TURN_SWITCH_STATUS.getValue());
+        return (leftTurnLight != null && leftTurnLight.equals("1")) || (rightTurnLight != null && rightTurnLight.equals("1"));
     }
 
     public void setMonitoringEnabled(boolean b) {
@@ -384,16 +424,95 @@ public class ServiceManager {
     }
 
     public void switchUser(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            Log.e(TAG, "Invalid user ID provided for switchUser");
+            return;
+        }
         executeWithServicesRunning(() -> {
-            if (sharedPreferences.getString(SharedPreferencesKeys.CURRENT_USER.getKey(), "").equals(userId)) {
+            var currentUser = sharedPreferences.getString(SharedPreferencesKeys.CURRENT_USER.getKey(), "");
+            if (currentUser.equals(userId)) {
                 Log.w(TAG, "Current user is already: " + userId);
                 return;
             }
+
             Log.w(TAG, "Switching user to: " + userId);
+
+            try {
+                saveCarSettingsForUser(currentUser);
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving settings for user: " + userId, e);
+            }
+
+            try {
+                restoreCarSettingsForUser(userId);
+            } catch (Exception e) {
+                Log.e(TAG, "Error restoring settings for user: " + userId, e);
+            }
+
             sharedPreferences.edit()
                     .putString(SharedPreferencesKeys.CURRENT_USER.getKey(), userId)
                     .apply();
         });
+    }
+
+    private void restoreCarSettingsForUser(String userId) {
+        String userSettingsString = sharedPreferences.getString(SharedPreferencesKeys.CAR_SETTINGS_PREFIX.getKey() + userId, "");
+        if (userSettingsString.isEmpty()) {
+            Log.w(TAG, "No saved settings found for user: " + userId);
+            return;
+        }
+        Gson gson = new Gson();
+        JsonElement userSettingsMap = gson.fromJson(userSettingsString, JsonElement.class);
+        if (!(userSettingsMap instanceof JsonObject)) {
+            Log.e(TAG, "Error parsing user settings JSON for user: " + userId);
+            return;
+        }
+
+        JsonObject userSettings = (JsonObject) userSettingsMap;
+        for (Map.Entry<String, JsonElement> entry : userSettings.entrySet()) {
+            String key = entry.getKey();
+            if (Arrays.stream(KEYS_TO_SAVE).noneMatch(k -> k.getValue().equals(key))) {
+                continue;
+            }
+            String value = entry.getValue().getAsString();
+            if (value.isEmpty()) {
+                Log.w(TAG, "Skipping empty value for key: " + key);
+                continue;
+            }
+            try {
+                updateData(key, value);
+                Log.w(TAG, "Restored setting for user " + userId + ": " + key + " = " + value);
+            } catch (Exception e) {
+                Log.e(TAG, "Error restoring setting for user " + userId + ": " + key, e);
+            }
+        }
+    }
+
+    private void saveCarSettingsForUser(String userId) {
+        Map<String, String> settingsToSave = new HashMap<>();
+
+        for (CarConstants key : KEYS_TO_SAVE) {
+            String value = getUpdatedData(key.getValue());
+            settingsToSave.put(key.getValue(), value);
+        }
+
+        if (settingsToSave.isEmpty()) {
+            Log.w(TAG, "No settings to save for user: " + userId);
+            return;
+        }
+
+        Gson gson = new Gson();
+        JsonObject jsonObject = new com.google.gson.JsonObject();
+        for (Map.Entry<String, String> entry : settingsToSave.entrySet()) {
+            jsonObject.addProperty(entry.getKey(), entry.getValue());
+        }
+        String jsonString = gson.toJson(jsonObject);
+
+        sharedPreferences.edit()
+                .putString(SharedPreferencesKeys.CAR_SETTINGS_PREFIX.getKey() + userId, jsonString)
+                .apply();
+
+        Log.w(TAG, "Saved settings for user: " + userId);
     }
 
     public int getTotalOdometer() {
