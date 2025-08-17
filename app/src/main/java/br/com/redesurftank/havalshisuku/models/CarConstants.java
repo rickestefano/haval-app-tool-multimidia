@@ -123,6 +123,7 @@ public enum CarConstants {
     CAR_COMFORT_SETTING_PASSENGER_SEAT_SUPPORT_STATE("car.comfort_setting.passenger_seat_support_state"),
     CAR_COMFORT_SETTING_PASSENGER_SEAT_VENTILATION_LEVEL("car.comfort_setting.passenger_seat_ventilation_level"),
     CAR_COMFORT_SETTING_REARVIEW_MIRROR_FOLDING_ACTION("car.comfort_setting.rearview_mirror_folding_action"),
+    CAR_COMFORT_SETTING_REARVIEW_MIRROR_FOLDING_CONFIG("car.comfort_setting.rearview_mirror_folding_config"),
     CAR_COMFORT_SETTING_REARVIEW_MIRROR_FOLDING_MODE("car.comfort_setting.rearview_mirror_folding_mode"),
     CAR_COMFORT_SETTING_REAR_LEFT_SEAT_HEATING_LEVEL("car.comfort_setting.rear_left_seat_heating_level"),
     CAR_COMFORT_SETTING_REAR_MIDDLE_SEAT_HEATING_LEVEL("car.comfort_setting.rear_middle_seat_heating_level"),

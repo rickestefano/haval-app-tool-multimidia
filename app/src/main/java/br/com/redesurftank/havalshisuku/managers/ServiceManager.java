@@ -79,8 +79,56 @@ public class ServiceManager {
             CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
             CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL
     };
+    /**
+     * allData = new String[]{"sys.settings.audio.volume_adaptation_enable", "sys.settings.audio.navi_tts_mix_media_enable", "sys.settings.audio.system_acoustics_enable", "sys.settings.audio.vehicle_alarm_enable", "sys.settings.audio.volume_adjust_by_speed_state", "car.ev.setting.avas_enable", "car.ev.setting.avas_config", "sys.settings.audio.sound_effect_dts_state", "sys.settings.audio.external_amp_enable", "car.ev.setting.vsg_config", "sys.settings.audio.sound_field_value", "sys.settings.audio.eq_bass_value", "sys.settings.audio.eq_alto_value", "sys.settings.audio.eq_treble_value", CAR_IPK_SETTING_BRIGHTNESS_CONFIG, CAR_SETTING_DISPLAY_BRIGHTNESS_LEVEL, CAR_DASHBOARD_SETTING_BRIGHTNESS_CONFIG};
+     * allDataCar = new String[]{"car.drive_setting.esp_enable", "car.drive_setting.dst_enable", "car.drive_setting.ass_state", "car.drive_setting.drive_mode", "car.drive.setting.drive_mode_memory", CAR_DRIVE_SETTING_WHEEL_ASSIST_MODE, "car.drive_setting.fatigue_monitor_state", "car.light_setting.ambient_light.enable", "car.light_setting.ambient_light.rhythmic_switch", "car.light_setting.ambient_light.brightness", "car.light_setting.ambient_light.multicolor_color_config", "car.light_setting.ambient_light.multicolor_static_config", "car.light_setting.ambient_light.multicolor_dynamic_config", "car.light_setting.ambient_light.rhythmic_switch", "car.light_setting.ambient_light.dynamic_mode", "car.light_setting.ambient_light.Intelligent_linkage", "car.wireless_charge_setting.configure_enable", "car.light_setting.freight_light_enable", "car.hud_setting.enable_state", "car.hud_setting.brightness_config", "car.hud_setting.height_config", "car.hud_setting.rotation_direction", "car.hud_setting.rotation_angle", "car.hud_setting.adas_display_enable", "car.hud_setting.navigation_display_enable", "car.hud_setting.btphone_display_enable", "car.hud_setting.vibration_corrn_enable", "car.hud_setting.snow_mode_enable", "car.door_lock_setting.unlock_mode", "car.door_lock_setting.locked_by_speed", "car.door_lock_setting.unlock_by_flameout", "car.door_lock_setting.super_lock_enable", "car.comfort_setting.rearview_mirror_folding_mode", "car.comfort_setting.rearview_mirror_folding_config", "car.drive.setting.outside_view_mirror_astern_mode", "car.comfort_setting.front_wiper_work_interval", "car.comfort_setting.auto_open_back_door", "car.comfort_setting.electric_side_pedal.enable", "car.comfort_setting.electric_side_pedal.roof_mode_enable", "car.comfort_setting.electric_side_pedal.special_mode_enable", "car.intelligent_driving_setting.fas.pps_state", "car.intelligent_driving_setting.fas.pcs_state", "car.intelligent_driving_setting.fas.intersection_assist_state", "car.intelligent_driving_setting.fas.front_cross_lateral_wraning", "car.intelligent_driving_setting.fas.front_cross_lateral_brake", "car.intelligent_driving_setting.fas.early_warning_sensitivity", "car.intelligent_driving_setting.fas.auto_emergency_turn", "car.intelligent_driving_setting.las.enable", "car.intelligent_driving_setting.las.lka_state", "car.intelligent_driving_setting.las.ldw_state", "car.intelligent_driving_setting.las.lca_state", "car.intelligent_driving_setting.las.elk_state", "car.intelligent_driving_setting.smart_dodge_state", "car.intelligent_driving_setting.fas.early_warning_mode", "car.intelligent_driving_setting.las.early_warning_sensitivity", "car.intelligent_driving_setting.sras.ala_state", "car.intelligent_driving_setting.sras.door_open_warning", "car.intelligent_driving_setting.sras.rcw_state", "car.intelligent_driving_setting.sras.rsa_rsb_warning_state", "car.intelligent_driving_setting.sras.rsa_rsb_state", "car.intelligent_driving_setting.las.tsi_state", "car.intelligent_driving_setting.over_speed_warning_state", "car.intelligent_driving_setting.cruising_speed_limit", "car.intelligent_driving_setting.over_speed_alarm_sensitivity", "car.intelligent_driving_setting.eas.highway_assist_system_state", "car.intelligent_driving_setting.eas.change_lane_assist_state", "car.intelligent_driving_setting.eas.warning_way", "car.intelligent_driving_setting.eas.assist_sensitivity", "car.light_setting.welcome_light_delay_time", "car.light_setting.follow_home_delay_time", "car.light_setting.sport_mode_light", "car.light_setting.parking_light_config", "car.light_setting.find_car_mode_light", "car.light_setting.welcome_light_config", "car.parking_setting.fpas_enable", "car.parking_setting.radar_setting.meb_state", "car.parking_setting.radar_alarm_sound_enable", "car.parking_setting.apa.flanking_protection", "car.parking_setting.auto_steering_enable", "car.parking_setting.avm_auto_exit_speed_config", "sys.avm.auto_preview_enable", "car.hvac.setting.comfort_curve", "car.hvac.setting.auto_defrost_enable", "car.ev_setting.energy_recovery_level", "car.ev.setting.wash_mode_enable", "car.ev.setting.pedal_control_enable", "car.comfort_setting.reduce_seat_belt_slack", "car.comfort_setting.seat_belt_vibration_warning", "car.comfort_setting.seat_welcome_config", "car.comfort_setting.chair_memory.auto_enable", "car.frs_setting.dms_enable", "car.frs_setting.fatigue_monitoring_enable", "car.frs_setting.distraction_detection_enable", "car.frs_setting.driver_behavior_detect", "car.frs_setting.screen_control_enable", "car.frs_setting.occupant_identification_system", "car.light_setting.power_saved_mode", "car.light_setting.driver_ambient_light.enable", "car.light_setting.passenger_ambient_light.enable", "car.light_setting.rear_row_ambient_light.enable", "car.light_setting.ambient_light_ole.multicolor_color_config", "car.light_setting.ambient_light_ole.multicolor_static_config", "car.light_setting.ambient_light_ole.multicolor_dynamic_config", "car.light_setting.ambient_light_ole.rhythmic_switch", "car.light_setting.ambient_light.breathing_mode_switch", "car.light_setting.ole_ambient_light.breathing_mode_switch", "car.light_setting.ole_ambient_light.flow_mode_switch", "car.light_setting.ole_ambient_light.dynamic_mode", "car.light_setting.ambient_light_ole.flow_water_light", "car.light_setting.abs_light_enable", "car.basic.steering_reset_remind_enable", "car.basic.window_close_by_speed"};
+     */
     private static final CarConstants[] KEYS_TO_SAVE = {
-            CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE
+            CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE,
+            CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE_MEMORY,
+            CarConstants.CAR_DRIVE_SETTING_DST_ENABLE,
+            CarConstants.CAR_DRIVE_SETTING_ESP_ENABLE,
+            CarConstants.CAR_DRIVE_SETTING_FATIGUE_MONITOR_STATE,
+            CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_ASTERN_MODE,
+            CarConstants.CAR_DRIVE_SETTING_STEERING_WHEEL_ASSIST_MODE,
+            CarConstants.CAR_EV_SETTING_ENERGY_RECOVERY_LEVEL,
+            CarConstants.CAR_CONFIGURE_PEDAL_CONTROL_ENABLE,
+            CarConstants.CAR_HUD_SETTING_ADAS_DISPLAY_ENABLE,
+            CarConstants.CAR_HUD_SETTING_ENABLE_STATE,
+            CarConstants.CAR_HUD_SETTING_HEIGHT_CONFIG,
+            CarConstants.CAR_HUD_SETTING_NAVIGATION_DISPLAY_ENABLE,
+            CarConstants.CAR_HUD_SETTING_ROTATION_ANGLE,
+            CarConstants.CAR_HUD_SETTING_ROTATION_DIRECTION,
+            CarConstants.CAR_HUD_SETTING_SNOW_MODE_ENABLE,
+            CarConstants.CAR_HUD_SETTING_VIBRATION_CORRN_ENABLE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_CRUISING_SPEED_LIMIT,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_EAS_ASSIST_SENSITIVITY,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_EAS_CHANGE_LANE_ASSIST_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_EAS_HIGHWAY_ASSIST_SYSTEM_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_EAS_WARNING_WAY,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_AUTO_EMERGENCY_TURN,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_EARLY_WARNING_MODE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_EARLY_WARNING_SENSITIVITY,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_FRONT_CROSS_LATERAL_BRAKE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_FRONT_CROSS_LATERAL_WRANING,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_INTERSECTION_ASSIST_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_PCS_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_FAS_PPS_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_EARLY_WARNING_SENSITIVITY,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_ELK_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_ENABLE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_LCA_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_LDW_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_LKA_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_LAS_TSI_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_OVER_SPEED_ALARM_SENSITIVITY,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_OVER_SPEED_WARNING_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SMART_DODGE_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SRAS_ALA_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SRAS_DOOR_OPEN_WARNING,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SRAS_RCW_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SRAS_RSA_RSB_STATE,
+            CarConstants.CAR_INTELLIGENT_DRIVING_SETTING_SRAS_RSA_RSB_WARNING_STATE,
     };
     private static ServiceManager instance;
     private final List<IDataChanged> dataChangedListeners;
@@ -364,9 +412,9 @@ public class ServiceManager {
                     closeWindowDueToeSpeed = false;
                     Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
                 }
-            } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f) {
+            } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("3")) {
                 dvr.setAVM(0);
-            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false)) {
+            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("3")) {
                 dvr.setAVM(0);
             }
         } catch (Exception e) {
