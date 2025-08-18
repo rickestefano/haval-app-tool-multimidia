@@ -79,7 +79,8 @@ public class ServiceManager {
             CarConstants.SYS_AVM_PREVIEW_STATUS,
             CarConstants.SYS_SETTINGS_AUDIO_MEDIA_VOLUME,
             CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
-            CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL
+            CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL,
+            CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE
     };
     /**
      * allData = new String[]{"sys.settings.audio.volume_adaptation_enable", "sys.settings.audio.navi_tts_mix_media_enable", "sys.settings.audio.system_acoustics_enable", "sys.settings.audio.vehicle_alarm_enable", "sys.settings.audio.volume_adjust_by_speed_state", "car.ev.setting.avas_enable", "car.ev.setting.avas_config", "sys.settings.audio.sound_effect_dts_state", "sys.settings.audio.external_amp_enable", "car.ev.setting.vsg_config", "sys.settings.audio.sound_field_value", "sys.settings.audio.eq_bass_value", "sys.settings.audio.eq_alto_value", "sys.settings.audio.eq_treble_value", CAR_IPK_SETTING_BRIGHTNESS_CONFIG, CAR_SETTING_DISPLAY_BRIGHTNESS_LEVEL, CAR_DASHBOARD_SETTING_BRIGHTNESS_CONFIG};
