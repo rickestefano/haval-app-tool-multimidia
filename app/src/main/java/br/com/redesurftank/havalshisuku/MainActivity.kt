@@ -3,6 +3,7 @@ package br.com.redesurftank.havalshisuku
 import android.R.attr.data
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -1185,7 +1186,9 @@ fun InformacoesTab() {
             )
         )
         Button(onClick = {
-            val intent = Intent(Settings.ACTION_SETTINGS)
+            val intent = Intent(Intent.ACTION_MAIN).apply {
+                component = ComponentName("com.android.settings", "com.android.settings.Settings")
+            }
             context.startActivity(intent)
         }) {
             Text(stringResource(R.string.open_android_settings))

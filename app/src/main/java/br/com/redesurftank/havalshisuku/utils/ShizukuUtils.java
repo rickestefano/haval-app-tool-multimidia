@@ -168,7 +168,7 @@ public class ShizukuUtils {
         }
     }
 
-    public static void runCommandOnBackground(String command[], CommandListener listener) {
+    public static void runCommandOnBackground(String[] command, CommandListener listener) {
         IShizukuService shizukuService = IShizukuService.Stub.asInterface(Shizuku.getBinder());
         IRemoteProcess process = null;
         try {
