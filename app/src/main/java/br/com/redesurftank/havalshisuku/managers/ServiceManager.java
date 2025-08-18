@@ -46,6 +46,7 @@ public class ServiceManager {
     private static final String TAG = "ServiceManager";
     public static final CarConstants[] DEFAULT_KEYS = {
             CarConstants.CAR_BASIC_ACCUMULATED_DIRVETIME,
+            CarConstants.CAR_BASIC_GEAR_STATUS,
             CarConstants.CAR_BASIC_DOOR_STATUS,
             CarConstants.CAR_BASIC_DRIVING_READY_STATE,
             CarConstants.CAR_BASIC_INSIDE_TEMP,
