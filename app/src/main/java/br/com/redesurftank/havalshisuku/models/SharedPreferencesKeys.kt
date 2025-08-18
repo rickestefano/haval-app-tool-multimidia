@@ -24,6 +24,5 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK("bypassSelfInstallationIntegrityCheck", "Ignorar verificação de integridade da instalação"),
     SELF_INSTALLATION_INTEGRITY_CHECK("selfInstallationIntegrityCheck", "Verificação de integridade da instalação"),
     ADVANCE_USE("advanceUse", "Uso avançado"),
-    CURRENT_USER("currentUser", "Usuário atual"),
-    CAR_SETTINGS_PREFIX("carSettings_", "Configurações do carro"),
+    CURRENT_USER("currentUser", "Usuário atual")
 }

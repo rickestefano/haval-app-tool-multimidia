@@ -36,6 +36,7 @@ import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
 import androidx.core.content.edit
 import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
+import br.com.redesurftank.havalshisuku.models.AppInfo
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils
@@ -45,6 +46,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.BufferedReader
@@ -675,12 +677,165 @@ fun CurrentValuesTab() {
 fun InstallAppsTab() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(true) }
+    var apps by remember { mutableStateOf(listOf<AppInfo>()) }
+    var downloadingApp by remember { mutableStateOf<String?>(null) }
+    var downloadProgress by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
+    val pm = context.packageManager
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { /* Permission requested, user will return */ }
+    ) { /* Permission requested */ }
     var showPermissionDialog by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var installResult by remember { mutableStateOf("") }
+    var urlInput by remember { mutableStateOf("") }
+    var downloadingUrl by remember { mutableStateOf(false) }
+    var urlProgress by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val url = URL("https://logger.assets-redesurftank.com.br/haval/apps.json?rnd=${System.currentTimeMillis()}")
+                val conn = url.openConnection() as HttpURLConnection
+                if (conn.responseCode == 200) {
+                    val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                    val jsonString = reader.use { it.readText() }
+                    val jsonArray = JSONArray(jsonString)
+                    val appList = mutableListOf<AppInfo>()
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        appList.add(AppInfo(
+                            obj.getString("appName"),
+                            obj.getString("appVersion"),
+                            obj.getString("appPackageName"),
+                            obj.getString("appLink")
+                        ))
+                    }
+                    apps = appList
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading apps", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun getInstalledVersion(packageName: String): String? {
+        return try {
+            val info = pm.getPackageInfo(packageName, 0)
+            info.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    fun compareVersions(v1: String?, v2: String): Int {
+        if (v1 == null) return -1
+        val parts1 = v1.split(".").map { it.toIntOrNull() ?: 0 }
+        val parts2 = v2.split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until min(parts1.size, parts2.size)) {
+            if (parts1[i] > parts2[i]) return 1
+            if (parts1[i] < parts2[i]) return -1
+        }
+        return parts1.size.compareTo(parts2.size)
+    }
+
+    fun startDownload(app: AppInfo) {
+        downloadingApp = app.packageName
+        downloadProgress = downloadProgress.toMutableMap().apply { put(app.packageName, 0f) }
+        scope.launch(Dispatchers.IO) {
+            try {
+                val file = File(context.getExternalFilesDir(null), "${app.packageName}.apk")
+                val url = URL(app.link)
+                val conn = url.openConnection() as HttpURLConnection
+                val length = conn.contentLength
+                val input = BufferedInputStream(conn.inputStream)
+                val output = FileOutputStream(file)
+                val buffer = ByteArray(4096)
+                var bytesRead: Int
+                var total = 0
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                    total += bytesRead
+                    if (length > 0) {
+                        downloadProgress = downloadProgress.toMutableMap().apply { put(app.packageName, total.toFloat() / length) }
+                    }
+                }
+                output.close()
+                input.close()
+                withContext(Dispatchers.Main) {
+                    if (!pm.canRequestPackageInstalls()) {
+                        showPermissionDialog = true
+                        return@withContext
+                    }
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed", e)
+            } finally {
+                downloadingApp = null
+            }
+        }
+    }
+
+    fun startDownloadFromUrl(urlString: String) {
+        downloadingUrl = true
+        urlProgress = 0f
+        scope.launch(Dispatchers.IO) {
+            try {
+                val file = File(context.getExternalFilesDir(null), "custom.apk")
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpURLConnection
+                val length = conn.contentLength
+                val input = BufferedInputStream(conn.inputStream)
+                val output = FileOutputStream(file)
+                val buffer = ByteArray(4096)
+                var bytesRead: Int
+                var total = 0
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                    total += bytesRead
+                    if (length > 0) {
+                        urlProgress = total.toFloat() / length
+                    }
+                }
+                output.close()
+                input.close()
+                withContext(Dispatchers.Main) {
+                    if (!pm.canRequestPackageInstalls()) {
+                        showPermissionDialog = true
+                        return@withContext
+                    }
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed", e)
+            } finally {
+                downloadingUrl = false
+            }
+        }
+    }
+
+    fun uninstall(packageName: String) {
+        val intent = Intent(Intent.ACTION_DELETE).apply {
+            data = Uri.parse("package:$packageName")
+        }
+        context.startActivity(intent)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -693,13 +848,55 @@ fun InstallAppsTab() {
         if (installResult.isNotEmpty()) {
             Text(installResult)
         }
+        TextField(
+            value = urlInput,
+            onValueChange = { urlInput = it },
+            label = { Text("URL do APK") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (downloadingUrl) {
+            LinearProgressIndicator(progress = { urlProgress })
+        } else {
+            Button(onClick = { if (urlInput.isNotEmpty()) startDownloadFromUrl(urlInput) }) {
+                Text("Instalar via URL")
+            }
+        }
         Text("Aplicativos disponíveis:")
-        LazyColumn {
-            item {
-                Text("Nenhum aplicativo disponível")
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            LazyColumn {
+                items(apps) { app ->
+                    val installedVersion = getInstalledVersion(app.packageName)
+                    val isInstalled = installedVersion != null
+                    val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
+                    val progress = downloadProgress[app.packageName] ?: 0f
+                    Column {
+                        Text("Nome: ${app.name}")
+                        Text("Versão disponível: ${app.version}")
+                        Text("Versão instalada: ${installedVersion ?: "Não instalada"}")
+                        Row {
+                            if (downloadingApp == app.packageName) {
+                                LinearProgressIndicator(progress = { progress })
+                            } else {
+                                if (!isInstalled) {
+                                    Button(onClick = { startDownload(app) }) { Text("Instalar") }
+                                } else if (needsUpdate) {
+                                    Button(onClick = { startDownload(app) }) { Text("Atualizar") }
+                                }
+                                if (isInstalled) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Button(onClick = { uninstall(app.packageName) }) { Text("Desinstalar") }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
             }
         }
     }
+
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
@@ -745,6 +942,7 @@ fun InstallAppsTab() {
             }
         )
     }
+
     if (showPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionDialog = false },

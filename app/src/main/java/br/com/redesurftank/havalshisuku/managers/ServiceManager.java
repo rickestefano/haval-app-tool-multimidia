@@ -11,8 +11,8 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
 
-import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService;
+import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IDvr;
 import com.beantechs.voice.adapter.IVehicle;
@@ -20,8 +20,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import org.intellij.lang.annotations.Language;
-
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -33,10 +34,10 @@ import java.util.Map;
 import java.util.Objects;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
-import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 
@@ -488,7 +489,7 @@ public class ServiceManager {
             try {
                 saveCarSettingsForUser(currentUser);
             } catch (Exception e) {
-                Log.e(TAG, "Error saving settings for user: " + userId, e);
+                Log.e(TAG, "Error saving settings for user: " + currentUser, e);
             }
 
             try {
@@ -504,35 +505,39 @@ public class ServiceManager {
     }
 
     private void restoreCarSettingsForUser(String userId) {
-        String userSettingsString = sharedPreferences.getString(SharedPreferencesKeys.CAR_SETTINGS_PREFIX.getKey() + userId, "");
-        if (userSettingsString.isEmpty()) {
+        File file = new File(App.getContext().getFilesDir(), userId + ".settings.json");
+        if (!file.exists()) {
             Log.w(TAG, "No saved settings found for user: " + userId);
             return;
         }
         Gson gson = new Gson();
-        JsonElement userSettingsMap = gson.fromJson(userSettingsString, JsonElement.class);
-        if (!(userSettingsMap instanceof JsonObject)) {
-            Log.e(TAG, "Error parsing user settings JSON for user: " + userId);
-            return;
-        }
+        try (FileReader reader = new FileReader(file)) {
+            JsonElement userSettingsMap = gson.fromJson(reader, JsonElement.class);
+            if (!(userSettingsMap instanceof JsonObject)) {
+                Log.e(TAG, "Error parsing user settings JSON for user: " + userId);
+                return;
+            }
 
-        JsonObject userSettings = (JsonObject) userSettingsMap;
-        for (Map.Entry<String, JsonElement> entry : userSettings.entrySet()) {
-            String key = entry.getKey();
-            if (Arrays.stream(KEYS_TO_SAVE).noneMatch(k -> k.getValue().equals(key))) {
-                continue;
+            JsonObject userSettings = (JsonObject) userSettingsMap;
+            for (Map.Entry<String, JsonElement> entry : userSettings.entrySet()) {
+                String key = entry.getKey();
+                if (Arrays.stream(KEYS_TO_SAVE).noneMatch(k -> k.getValue().equals(key))) {
+                    continue;
+                }
+                String value = entry.getValue().getAsString();
+                if (value.isEmpty()) {
+                    Log.w(TAG, "Skipping empty value for key: " + key);
+                    continue;
+                }
+                try {
+                    updateData(key, value);
+                    Log.w(TAG, "Restored setting for user " + userId + ": " + key + " = " + value);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error restoring setting for user " + userId + ": " + key, e);
+                }
             }
-            String value = entry.getValue().getAsString();
-            if (value.isEmpty()) {
-                Log.w(TAG, "Skipping empty value for key: " + key);
-                continue;
-            }
-            try {
-                updateData(key, value);
-                Log.w(TAG, "Restored setting for user " + userId + ": " + key + " = " + value);
-            } catch (Exception e) {
-                Log.e(TAG, "Error restoring setting for user " + userId + ": " + key, e);
-            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading settings file for user: " + userId, e);
         }
     }
 
@@ -554,13 +559,14 @@ public class ServiceManager {
         for (Map.Entry<String, String> entry : settingsToSave.entrySet()) {
             jsonObject.addProperty(entry.getKey(), entry.getValue());
         }
-        String jsonString = gson.toJson(jsonObject);
 
-        sharedPreferences.edit()
-                .putString(SharedPreferencesKeys.CAR_SETTINGS_PREFIX.getKey() + userId, jsonString)
-                .apply();
-
-        Log.w(TAG, "Saved settings for user: " + userId);
+        File file = new File(App.getContext().getFilesDir(), userId + ".settings.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            gson.toJson(jsonObject, writer);
+            Log.w(TAG, "Saved settings for user: " + userId);
+        } catch (Exception e) {
+            Log.e(TAG, "Error writing settings file for user: " + userId, e);
+        }
     }
 
     public int getTotalOdometer() {
