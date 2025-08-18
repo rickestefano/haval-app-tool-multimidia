@@ -384,42 +384,49 @@ public class ServiceManager {
                     setAvasEnabled(false);
                     Log.w(TAG, "AVAS disabled by user preference");
                 }
-            } else if (key.equals(CarConstants.CAR_DMS_WORK_STATE.getValue()) && value.equals("0")) {
+            } else if ((key.equals(CarConstants.CAR_DMS_WORK_STATE.getValue()) && value.equals("0"))) {
                 boolean closeWindowOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.getKey(), false);
                 if (closeWindowOnPowerOff) {
-                    int[] windowsStatus = vehicle.getWindowsStatus(0);
-                    for (int i = 0; i < windowsStatus.length; i++) {
-                        Log.w(TAG, "Window " + i + " status: " + windowsStatus[i]);
-                        if (windowsStatus[i] != 1) {
-                            vehicle.setWindowStatus(i, 1);
-                            Log.w(TAG, "Window " + i + " closed due to poweroff");
-                        }
-                    }
+                    closeAllWindow();
+                }
+            } else if ((key.equals(CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE.getValue()) && value.equals("0"))) {
+                boolean closeWindowOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.getKey(), false);
+                if (closeWindowOnPowerOff) {
+                    closeAllWindow();
                 }
             } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.getKey(), false)) {
                 float currentSpeed = Float.parseFloat(value);
                 if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.getKey(), 0)) {
                     if (!closeWindowDueToeSpeed) {
-                        int[] windowsStatus = vehicle.getWindowsStatus(0);
-                        for (int i = 0; i < windowsStatus.length; i++) {
-                            if (windowsStatus[i] != 1) {
-                                vehicle.setWindowStatus(i, 1);
-                                Log.w(TAG, "Window " + i + " closed due to speed threshold exceeded: " + currentSpeed);
-                            }
-                        }
+                        closeAllWindow();
                         closeWindowDueToeSpeed = true;
                     }
                 } else if (currentSpeed <= 10 && closeWindowDueToeSpeed) {
                     closeWindowDueToeSpeed = false;
                     Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
                 }
-            } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("3")) {
+            } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
                 dvr.setAVM(0);
-            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("3")) {
+            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
                 dvr.setAVM(0);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);
+        }
+    }
+
+    public boolean closeAllWindow() {
+        try {
+            int[] windowsStatus = vehicle.getWindowsStatus(0);
+            for (int i = 0; i < windowsStatus.length; i++) {
+                if (windowsStatus[i] != 1) {
+                    vehicle.setWindowStatus(i, 1);
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error closing all windows", e);
+            return false;
         }
     }
 
