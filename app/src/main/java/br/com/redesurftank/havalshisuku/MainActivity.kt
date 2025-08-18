@@ -264,12 +264,6 @@ fun BasicSettingsTab() {
                 }
             }
         }
-        Button(onClick = {
-            val intent = Intent(Settings.ACTION_SETTINGS)
-            context.startActivity(intent)
-        }) {
-            Text(stringResource(R.string.open_android_settings))
-        }
     }
     if (showStartPicker) {
         LaunchedEffect(Unit) {
@@ -980,6 +974,12 @@ fun InformacoesTab() {
                 }
             )
         )
+        Button(onClick = {
+            val intent = Intent(Settings.ACTION_SETTINGS)
+            context.startActivity(intent)
+        }) {
+            Text(stringResource(R.string.open_android_settings))
+        }
     }
 
     if (showAdvancedDialog) {
