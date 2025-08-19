@@ -21,6 +21,7 @@ import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
+import java.io.IOException;
 import java.util.regex.Pattern;
 
 import br.com.redesurftank.App;
@@ -187,62 +188,90 @@ public class ForegroundService extends Service implements Shizuku.OnBinderDeadLi
 
         Log.w(TAG, "Shizuku initialized and permission granted, starting services...");
 
-        try {
-            var isTermuxInstalled = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "list", "packages", "com.termux"}).trim().isEmpty();
-            if (isTermuxInstalled) {
-                var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
-                if (!isSSHRunning) {
-                    Log.w(TAG, "SSHD is not running, starting it now...");
-                    TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
-                        @Override
-                        public void onStdout(String line) {
-                            Log.w(TAG, "SSHD Output: " + line);
-                        }
+        // Start SSH check and start in background with retry
+        backgroundHandler.post(new Runnable() {
+            int retryCount = 0;
+            final int MAX_RETRIES = 5;
 
-                        @Override
-                        public void onStderr(String line) {
-                            Log.e(TAG, "SSHD Error: " + line);
-                        }
+            @Override
+            public void run() {
+                try {
+                    var isTermuxInstalled = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "list", "packages", "com.termux"}).trim().isEmpty();
+                    if (isTermuxInstalled) {
+                        var isSSHRunning = !TermuxUtils.runCommandAndGetOutput("pgrep sshd").trim().isEmpty();
+                        if (!isSSHRunning) {
+                            Log.w(TAG, "SSHD is not running, starting it now...");
+                            TermuxUtils.runCommandOnBackground("sshd", new CommandListener() {
+                                @Override
+                                public void onStdout(String line) {
+                                    Log.w(TAG, "SSHD Output: " + line);
+                                }
 
-                        @Override
-                        public void onFinished(int exitCode) {
-                            Log.w(TAG, "SSHD finished with exit code: " + exitCode);
+                                @Override
+                                public void onStderr(String line) {
+                                    Log.e(TAG, "SSHD Error: " + line);
+                                }
+
+                                @Override
+                                public void onFinished(int exitCode) {
+                                    Log.w(TAG, "SSHD finished with exit code: " + exitCode);
+                                }
+                            });
+                        } else {
+                            Log.w(TAG, "SSHD is already running");
                         }
-                    });
-                } else {
-                    Log.w(TAG, "SSHD is already running");
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error checking Termux installation: " + e.getMessage(), e);
+                    if (retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        Log.w(TAG, "Retrying SSH check/start, attempt " + retryCount);
+                        backgroundHandler.postDelayed(this, 1000);
+                    }
                 }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking Termux installation: " + e.getMessage(), e);
-        }
+        });
 
-        try {
-            var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
-            if (!isADBRunning) {
-                Log.w(TAG, "ADB is not running, starting it now...");
-                ShizukuUtils.runCommandOnBackground(new String[]{"start", "adbd"}, new CommandListener() {
-                    @Override
-                    public void onStdout(String line) {
-                        Log.w(TAG, "ADB Output: " + line);
-                    }
+        // Start ADB check and start in background with retry
+        backgroundHandler.post(new Runnable() {
+            int retryCount = 0;
+            final int MAX_RETRIES = 5;
 
-                    @Override
-                    public void onStderr(String line) {
-                        Log.e(TAG, "ADB Error: " + line);
-                    }
+            @Override
+            public void run() {
+                try {
+                    var isADBRunning = !ShizukuUtils.runCommandAndGetOutput(new String[]{"pgrep", "adbd"}).trim().isEmpty();
+                    if (!isADBRunning) {
+                        Log.w(TAG, "ADB is not running, starting it now...");
+                        ShizukuUtils.runCommandOnBackground(new String[]{"start", "adbd"}, new CommandListener() {
+                            @Override
+                            public void onStdout(String line) {
+                                Log.w(TAG, "ADB Output: " + line);
+                            }
 
-                    @Override
-                    public void onFinished(int exitCode) {
-                        Log.w(TAG, "ADB finished with exit code: " + exitCode);
+                            @Override
+                            public void onStderr(String line) {
+                                Log.e(TAG, "ADB Error: " + line);
+                            }
+
+                            @Override
+                            public void onFinished(int exitCode) {
+                                Log.w(TAG, "ADB finished with exit code: " + exitCode);
+                            }
+                        });
+                    } else {
+                        Log.w(TAG, "ADB is already running");
                     }
-                });
-            } else {
-                Log.w(TAG, "ADB is already running");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error checking ADB status: " + e.getMessage(), e);
+                    if (retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        Log.w(TAG, "Retrying ADB check/start, attempt " + retryCount);
+                        backgroundHandler.postDelayed(this, 1000);
+                    }
+                }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking ADB status: " + e.getMessage(), e);
-        }
+        });
 
         try {
             ShizukuUtils.runCommandAndGetOutput(new String[]{"echo", "60", ">", "/proc/sys/vm/swappiness"});

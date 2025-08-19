@@ -16,6 +16,7 @@ import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.voice.adapter.IBinderPool;
 import com.beantechs.voice.adapter.IDvr;
 import com.beantechs.voice.adapter.IVehicle;
+import com.beantechs.voice.adapter.IVehicleModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -36,7 +37,9 @@ import java.util.Objects;
 import br.com.redesurftank.App;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
+import br.com.redesurftank.havalshisuku.models.CarInfo;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
+import br.com.redesurftank.havalshisuku.models.VoiceFunction;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
@@ -147,9 +150,11 @@ public class ServiceManager {
     private static long timeBootReceived;
     private long timeStartInitialization;
     private long timeInitialized;
+    private CarInfo carInfo;
     private IIntelligentVehicleControlService controlService;
     private IVehicle vehicle;
     private IDvr dvr;
+    private IVehicleModel vehicleModel;
 
     private ServiceManager() {
         dataChangedListeners = new ArrayList<>();
@@ -180,6 +185,9 @@ public class ServiceManager {
             }
             if (dvr != null) {
                 dvr = null;  // Disconnect binder
+            }
+            if (vehicleModel != null) {
+                vehicleModel = null;  // Disconnect binder
             }
             if (handlerThread != null && handlerThread.isAlive()) {
                 handlerThread.quitSafely();
@@ -217,6 +225,8 @@ public class ServiceManager {
             vehicle = IVehicle.Stub.asInterface(new ShizukuBinderWrapper(vehicleBinder));
             IBinder dvrBinder = pool.queryBinder(8);
             dvr = IDvr.Stub.asInterface(new ShizukuBinderWrapper(dvrBinder));
+            IBinder vehicleModelBinder = pool.queryBinder(13);
+            vehicleModel = IVehicleModel.Stub.asInterface(new ShizukuBinderWrapper(vehicleModelBinder));
             Log.w(TAG, "Services bound successfully");
             listener = new IListener.Stub() {
                 @Override
@@ -425,6 +435,20 @@ public class ServiceManager {
                     vehicle.setWindowStatus(i, 1);
                 }
             }
+            var sunRoofStatus = vehicle.getSkylightLevel(0);
+            if (sunRoofStatus != 0) {
+                vehicle.setSkylightLevel(0);
+            }
+            backgroundHandler.postDelayed(() -> {
+                try {
+                    var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
+                    if (sunRoofBlockStatus != 0) {
+                        vehicle.setShadeScreensLevel(0);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error closing shade screens", e);
+                }
+            }, 5000);
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error closing all windows", e);
@@ -674,6 +698,19 @@ public class ServiceManager {
 
     public long getTimeStartInitialization() {
         return timeStartInitialization;
+    }
+
+    public CarInfo getCarInfo() {
+        try {
+            if (carInfo == null) {
+                carInfo = new CarInfo(vehicleModel.getCarBrand(), vehicleModel.getVehicleModel(), vehicleModel.getVehicleType());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting car info", e);
+            return new CarInfo("Unknown", "Unknown", "Unknown");
+        }
+
+        return carInfo;
     }
 
     private static IBinder getSystemService(String serviceName) {
