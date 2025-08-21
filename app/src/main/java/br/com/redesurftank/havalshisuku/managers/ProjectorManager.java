@@ -43,7 +43,7 @@ public class ProjectorManager {
         sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
 
         if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
-            projectorCreators.put(2, (ctx, disp) -> {
+            projectorCreators.put(1, (ctx, disp) -> {
                 instrumentProjector2 = new InstrumentProjector2(ctx, disp);
                 instrumentProjector2.show();
                 Log.w(TAG, "InstrumentProjector2 initialized and displayed successfully");

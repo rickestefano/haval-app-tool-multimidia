@@ -43,9 +43,12 @@ import java.util.Map;
 import java.util.Objects;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.listeners.IClusterCardChanged;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
+import br.com.redesurftank.havalshisuku.listeners.IServiceManagerEvent;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.CarInfo;
+import br.com.redesurftank.havalshisuku.models.ServiceManagerEventType;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.models.SteeringWheelAcControlType;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
@@ -144,6 +147,7 @@ public class ServiceManager {
     };
     private static ServiceManager instance;
     private final List<IDataChanged> dataChangedListeners;
+    private final List<IServiceManagerEvent> serviceManagerEventListeners;
     private final Map<String, String> dataCache;
     private SharedPreferences sharedPreferences;
     private Boolean closeWindowDueToeSpeed = false;
@@ -175,6 +179,7 @@ public class ServiceManager {
     private ServiceManager() {
         dataChangedListeners = new ArrayList<>();
         dataCache = new HashMap<>();
+        serviceManagerEventListeners = new ArrayList<>();
     }
 
     public static synchronized ServiceManager getInstance() {
@@ -280,6 +285,8 @@ public class ServiceManager {
                         clusterCardView = whichCard;
                         steeringWheelAcControlType = SteeringWheelAcControlType.FAN_SPEED;
                         steeringWheelAcControlTypeIndex = 0;
+                        dispatchServiceManagerEvent(ServiceManagerEventType.CLUSTER_CARD_CHANGED, clusterCardView);
+                        dispatchServiceManagerEvent(ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL, steeringWheelAcControlType);
                         Log.w(TAG, "Cluster card changed: " + whichCard);
                     } else if (msgId == 134) {
                         if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
@@ -349,7 +356,7 @@ public class ServiceManager {
                                     steeringWheelAcControlTypeIndex++;
                                     steeringWheelAcControlTypeIndex = steeringWheelAcControlTypeIndex % SteeringWheelAcControlType.values().length;
                                     steeringWheelAcControlType = SteeringWheelAcControlType.values()[steeringWheelAcControlTypeIndex];
-                                    Log.w(TAG, "Steering wheel AC control type changed: " + steeringWheelAcControlType);
+                                    dispatchServiceManagerEvent(ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL, steeringWheelAcControlType);
                                     break;
                                 case 1024:
                                 case 1025: {
@@ -549,6 +556,42 @@ public class ServiceManager {
             Log.w(TAG, "Listener removed: " + listener.getClass().getName());
         } else {
             Log.w(TAG, "Listener not found: " + listener.getClass().getName());
+        }
+    }
+
+    public void addServiceManagerEventListener(IServiceManagerEvent listener) {
+        if (listener == null) {
+            Log.e(TAG, "Cannot add null service manager event listener");
+            return;
+        }
+        if (!serviceManagerEventListeners.contains(listener)) {
+            serviceManagerEventListeners.add(listener);
+            Log.w(TAG, "Service manager event listener added: " + listener.getClass().getName());
+        } else {
+            Log.w(TAG, "Service manager event listener already exists: " + listener.getClass().getName());
+        }
+    }
+
+    public void removeServiceManagerEventListener(IServiceManagerEvent listener) {
+        if (listener == null) {
+            Log.e(TAG, "Cannot remove null service manager event listener");
+            return;
+        }
+        if (serviceManagerEventListeners.remove(listener)) {
+            Log.w(TAG, "Service manager event listener removed: " + listener.getClass().getName());
+        } else {
+            Log.w(TAG, "Service manager event listener not found: " + listener.getClass().getName());
+        }
+    }
+
+    private void dispatchServiceManagerEvent(ServiceManagerEventType event, Object... args) {
+        Log.w(TAG, "Dispatching service manager event: " + event);
+        for (IServiceManagerEvent listener : new ArrayList<>(serviceManagerEventListeners)) {
+            try {
+                listener.onEvent(event, args);
+            } catch (Exception e) {
+                Log.e(TAG, "Error notifying service manager event listener", e);
+            }
         }
     }
 
