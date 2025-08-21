@@ -47,6 +47,7 @@ import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.CarInfo;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
+import br.com.redesurftank.havalshisuku.models.SteeringWheelAcControlType;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
 import rikka.shizuku.Shizuku;
@@ -93,10 +94,7 @@ public class ServiceManager {
             CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL,
             CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE
     };
-    /**
-     * allData = new String[]{"sys.settings.audio.volume_adaptation_enable", "sys.settings.audio.navi_tts_mix_media_enable", "sys.settings.audio.system_acoustics_enable", "sys.settings.audio.vehicle_alarm_enable", "sys.settings.audio.volume_adjust_by_speed_state", "car.ev.setting.avas_enable", "car.ev.setting.avas_config", "sys.settings.audio.sound_effect_dts_state", "sys.settings.audio.external_amp_enable", "car.ev.setting.vsg_config", "sys.settings.audio.sound_field_value", "sys.settings.audio.eq_bass_value", "sys.settings.audio.eq_alto_value", "sys.settings.audio.eq_treble_value", CAR_IPK_SETTING_BRIGHTNESS_CONFIG, CAR_SETTING_DISPLAY_BRIGHTNESS_LEVEL, CAR_DASHBOARD_SETTING_BRIGHTNESS_CONFIG};
-     * allDataCar = new String[]{"car.drive_setting.esp_enable", "car.drive_setting.dst_enable", "car.drive_setting.ass_state", "car.drive_setting.drive_mode", "car.drive.setting.drive_mode_memory", CAR_DRIVE_SETTING_WHEEL_ASSIST_MODE, "car.drive_setting.fatigue_monitor_state", "car.light_setting.ambient_light.enable", "car.light_setting.ambient_light.rhythmic_switch", "car.light_setting.ambient_light.brightness", "car.light_setting.ambient_light.multicolor_color_config", "car.light_setting.ambient_light.multicolor_static_config", "car.light_setting.ambient_light.multicolor_dynamic_config", "car.light_setting.ambient_light.rhythmic_switch", "car.light_setting.ambient_light.dynamic_mode", "car.light_setting.ambient_light.Intelligent_linkage", "car.wireless_charge_setting.configure_enable", "car.light_setting.freight_light_enable", "car.hud_setting.enable_state", "car.hud_setting.brightness_config", "car.hud_setting.height_config", "car.hud_setting.rotation_direction", "car.hud_setting.rotation_angle", "car.hud_setting.adas_display_enable", "car.hud_setting.navigation_display_enable", "car.hud_setting.btphone_display_enable", "car.hud_setting.vibration_corrn_enable", "car.hud_setting.snow_mode_enable", "car.door_lock_setting.unlock_mode", "car.door_lock_setting.locked_by_speed", "car.door_lock_setting.unlock_by_flameout", "car.door_lock_setting.super_lock_enable", "car.comfort_setting.rearview_mirror_folding_mode", "car.comfort_setting.rearview_mirror_folding_config", "car.drive.setting.outside_view_mirror_astern_mode", "car.comfort_setting.front_wiper_work_interval", "car.comfort_setting.auto_open_back_door", "car.comfort_setting.electric_side_pedal.enable", "car.comfort_setting.electric_side_pedal.roof_mode_enable", "car.comfort_setting.electric_side_pedal.special_mode_enable", "car.intelligent_driving_setting.fas.pps_state", "car.intelligent_driving_setting.fas.pcs_state", "car.intelligent_driving_setting.fas.intersection_assist_state", "car.intelligent_driving_setting.fas.front_cross_lateral_wraning", "car.intelligent_driving_setting.fas.front_cross_lateral_brake", "car.intelligent_driving_setting.fas.early_warning_sensitivity", "car.intelligent_driving_setting.fas.auto_emergency_turn", "car.intelligent_driving_setting.las.enable", "car.intelligent_driving_setting.las.lka_state", "car.intelligent_driving_setting.las.ldw_state", "car.intelligent_driving_setting.las.lca_state", "car.intelligent_driving_setting.las.elk_state", "car.intelligent_driving_setting.smart_dodge_state", "car.intelligent_driving_setting.fas.early_warning_mode", "car.intelligent_driving_setting.las.early_warning_sensitivity", "car.intelligent_driving_setting.sras.ala_state", "car.intelligent_driving_setting.sras.door_open_warning", "car.intelligent_driving_setting.sras.rcw_state", "car.intelligent_driving_setting.sras.rsa_rsb_warning_state", "car.intelligent_driving_setting.sras.rsa_rsb_state", "car.intelligent_driving_setting.las.tsi_state", "car.intelligent_driving_setting.over_speed_warning_state", "car.intelligent_driving_setting.cruising_speed_limit", "car.intelligent_driving_setting.over_speed_alarm_sensitivity", "car.intelligent_driving_setting.eas.highway_assist_system_state", "car.intelligent_driving_setting.eas.change_lane_assist_state", "car.intelligent_driving_setting.eas.warning_way", "car.intelligent_driving_setting.eas.assist_sensitivity", "car.light_setting.welcome_light_delay_time", "car.light_setting.follow_home_delay_time", "car.light_setting.sport_mode_light", "car.light_setting.parking_light_config", "car.light_setting.find_car_mode_light", "car.light_setting.welcome_light_config", "car.parking_setting.fpas_enable", "car.parking_setting.radar_setting.meb_state", "car.parking_setting.radar_alarm_sound_enable", "car.parking_setting.apa.flanking_protection", "car.parking_setting.auto_steering_enable", "car.parking_setting.avm_auto_exit_speed_config", "sys.avm.auto_preview_enable", "car.hvac.setting.comfort_curve", "car.hvac.setting.auto_defrost_enable", "car.ev_setting.energy_recovery_level", "car.ev.setting.wash_mode_enable", "car.ev.setting.pedal_control_enable", "car.comfort_setting.reduce_seat_belt_slack", "car.comfort_setting.seat_belt_vibration_warning", "car.comfort_setting.seat_welcome_config", "car.comfort_setting.chair_memory.auto_enable", "car.frs_setting.dms_enable", "car.frs_setting.fatigue_monitoring_enable", "car.frs_setting.distraction_detection_enable", "car.frs_setting.driver_behavior_detect", "car.frs_setting.screen_control_enable", "car.frs_setting.occupant_identification_system", "car.light_setting.power_saved_mode", "car.light_setting.driver_ambient_light.enable", "car.light_setting.passenger_ambient_light.enable", "car.light_setting.rear_row_ambient_light.enable", "car.light_setting.ambient_light_ole.multicolor_color_config", "car.light_setting.ambient_light_ole.multicolor_static_config", "car.light_setting.ambient_light_ole.multicolor_dynamic_config", "car.light_setting.ambient_light_ole.rhythmic_switch", "car.light_setting.ambient_light.breathing_mode_switch", "car.light_setting.ole_ambient_light.breathing_mode_switch", "car.light_setting.ole_ambient_light.flow_mode_switch", "car.light_setting.ole_ambient_light.dynamic_mode", "car.light_setting.ambient_light_ole.flow_water_light", "car.light_setting.abs_light_enable", "car.basic.steering_reset_remind_enable", "car.basic.window_close_by_speed"};
-     */
+
     private static final CarConstants[] KEYS_TO_SAVE = {
             CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE,
             CarConstants.CAR_DRIVE_SETTING_DRIVE_MODE_MEMORY,
@@ -152,6 +150,8 @@ public class ServiceManager {
     private HandlerThread handlerThread;
     private Handler backgroundHandler;
     private IListener.Stub listener;
+    private IInputListener.Stub inputListener;
+    private IClusterCallback.Stub clusterCallback;
     private boolean servicesInitialized = false;
     private boolean isFridaInitialized = false;
     private final List<Runnable> pendingTasks = new ArrayList<>();
@@ -169,6 +169,8 @@ public class ServiceManager {
     private ServiceConnection inputServiceConnection;
     private int clusterHeartBeatCount = 0;
     private int clusterCardView = 0;
+    private int steeringWheelAcControlTypeIndex = 0;
+    private SteeringWheelAcControlType steeringWheelAcControlType = SteeringWheelAcControlType.FAN_SPEED;
 
     private ServiceManager() {
         dataChangedListeners = new ArrayList<>();
@@ -204,12 +206,26 @@ public class ServiceManager {
                 vehicleModel = null;  // Disconnect binder
             }
             if (clusterService != null) {
+                if (clusterService.asBinder().isBinderAlive()) {
+                    try {
+                        clusterService.unregisterCallback(clusterCallback);
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
                 if (clusterServiceConnection != null) {
                     context.unbindService(clusterServiceConnection);
                 }
                 clusterService = null;  // Disconnect binder
             }
             if (inputService != null) {
+                if (inputService.asBinder().isBinderAlive()) {
+                    try {
+                        inputService.unregisterKeyEventListener(new int[]{-1}, inputListener);
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
                 if (inputServiceConnection != null) {
                     context.unbindService(inputServiceConnection);
                 }
@@ -255,44 +271,47 @@ public class ServiceManager {
             vehicleModel = IVehicleModel.Stub.asInterface(new ShizukuBinderWrapper(vehicleModelBinder));
             Intent clusterIntent = new Intent();
             clusterIntent.setComponent(new ComponentName("com.autolink.clusterservice", "com.autolink.clusterservice.ClusterService"));
+            clusterCallback = new IClusterCallback.Stub() {
+                @Override
+                public void callbackMsg(int msgId, ClusterMsgData data) {
+                    Log.w(TAG, "Cluster message received: " + msgId + ", data: " + data);
+                    if (msgId == 133) {
+                        int whichCard = data.getIntValue();
+                        clusterCardView = whichCard;
+                        steeringWheelAcControlType = SteeringWheelAcControlType.FAN_SPEED;
+                        steeringWheelAcControlTypeIndex = 0;
+                        Log.w(TAG, "Cluster card changed: " + whichCard);
+                    } else if (msgId == 134) {
+                        if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                            int intValue = data.getIntValue();
+                            if (intValue == 2) {
+                                Log.w(TAG, "Cluster heartbeat reset requested");
+                                sendHeartBeatToCluster();
+                            }
+                        }
+                    } else if (msgId == 135) {
+                        if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                            int intValue = data.getIntValue();
+                            if (intValue == 1) {
+                                Log.w(TAG, "Cluster ready to show");
+                                sendClusterIntMsg(135, 1);
+                            } else if (intValue == 2) {
+                                Log.w(TAG, "Cluster ready to hide");
+                                sendClusterIntMsg(135, 2);
+                            } else if (intValue == 3 || intValue == 4) {
+                                boolean show = (intValue == 3);
+                                Log.w(TAG, "Cluster show or hide card: " + show);
+                            }
+                        }
+                    }
+                }
+            };
             clusterServiceConnection = new ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder service) {
                     clusterService = IClusterService.Stub.asInterface(service);
                     try {
-                        clusterService.registerCallback(new IClusterCallback.Stub() {
-                            @Override
-                            public void callbackMsg(int msgId, ClusterMsgData data) {
-                                Log.w(TAG, "Cluster message received: " + msgId + ", data: " + data);
-                                if (msgId == 133) {
-                                    int whichCard = data.getIntValue();
-                                    clusterCardView = whichCard;
-                                    Log.w(TAG, "Cluster card changed: " + whichCard);
-                                } else if (msgId == 134) {
-                                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
-                                        int intValue = data.getIntValue();
-                                        if (intValue == 2) {
-                                            Log.w(TAG, "Cluster heartbeat reset requested");
-                                            sendHeartBeatToCluster();
-                                        }
-                                    }
-                                } else if (msgId == 135) {
-                                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
-                                        int intValue = data.getIntValue();
-                                        if (intValue == 1) {
-                                            Log.w(TAG, "Cluster ready to show");
-                                            sendClusterIntMsg(135, 1);
-                                        } else if (intValue == 2) {
-                                            Log.w(TAG, "Cluster ready to hide");
-                                            sendClusterIntMsg(135, 2);
-                                        } else if (intValue == 3 || intValue == 4) {
-                                            boolean show = (intValue == 3);
-                                            Log.w(TAG, "Cluster show or hide card: " + show);
-                                        }
-                                    }
-                                }
-                            }
-                        });
+                        clusterService.registerCallback(clusterCallback);
                     } catch (Exception e) {
                         Log.e(TAG, "Error registering cluster callback", e);
                     }
@@ -319,46 +338,71 @@ public class ServiceManager {
             context.bindService(clusterIntent, clusterServiceConnection, Context.BIND_AUTO_CREATE);
             Intent inputIntent = new Intent("com.beantechs.inputservice.service_init");
             inputIntent.setPackage("com.beantechs.inputservice");
+            inputListener = new IInputListener.Stub() {
+                @Override
+                public void dispatchKeyEvent(KeyEvent keyEvent) {
+                    Log.w(TAG, "Key event received: " + keyEvent);
+                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.getKey(), false)) {
+                        if (clusterCardView == 1) {
+                            switch (keyEvent.getKeyCode()) {
+                                case 1028:
+                                    steeringWheelAcControlTypeIndex++;
+                                    steeringWheelAcControlTypeIndex = steeringWheelAcControlTypeIndex % SteeringWheelAcControlType.values().length;
+                                    steeringWheelAcControlType = SteeringWheelAcControlType.values()[steeringWheelAcControlTypeIndex];
+                                    Log.w(TAG, "Steering wheel AC control type changed: " + steeringWheelAcControlType);
+                                    break;
+                                case 1024:
+                                case 1025: {
+                                    switch (steeringWheelAcControlType) {
+                                        case TEMPERATURE: {
+                                            var currentTemperature = getUpdatedData(CarConstants.CAR_HVAC_DRIVER_TEMPERATURE.getValue());
+                                            if (currentTemperature != null) {
+                                                float temperature = Float.parseFloat(currentTemperature);
+                                                if (keyEvent.getKeyCode() == 1024) {
+                                                    temperature += 0.5f;
+                                                    if (temperature > 30.0f)
+                                                        temperature = 30.0f;
+                                                } else {
+                                                    temperature -= 0.5f;
+                                                    if (temperature < 16.0f)
+                                                        temperature = 16.0f;
+                                                }
+                                                updateData(CarConstants.CAR_HVAC_DRIVER_TEMPERATURE.getValue(), String.valueOf(temperature));
+                                            }
+                                        }
+                                        break;
+                                        case FAN_SPEED: {
+                                            var currentFanSpeed = getUpdatedData(CarConstants.CAR_HVAC_FAN_SPEED.getValue());
+                                            if (currentFanSpeed != null) {
+                                                int speed = Integer.parseInt(currentFanSpeed);
+                                                if (keyEvent.getKeyCode() == 1024) {
+                                                    speed++;
+                                                    if (speed > 7)
+                                                        speed = 7;
+                                                } else {
+                                                    speed--;
+                                                    if (speed < 1)
+                                                        speed = 1;
+                                                }
+                                                updateData(CarConstants.CAR_HVAC_FAN_SPEED.getValue(), String.valueOf(speed));
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            };
             inputServiceConnection = new ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder service) {
                     Log.w(TAG, "InputService connected");
                     inputService = IInputService.Stub.asInterface(service);
                     try {
-                        inputService.registerKeyEventListener(new int[]{-1}, new IInputListener.Stub() {
-                            @Override
-                            public void dispatchKeyEvent(KeyEvent keyEvent) {
-                                Log.w(TAG, "Key event received: " + keyEvent);
-                                if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.getKey(), false)) {
-                                    if (clusterCardView == 1) {
-                                        switch (keyEvent.getKeyCode()) {
-                                            case 1024:
-                                                var currentFanSpee = getUpdatedData(CarConstants.CAR_HVAC_FAN_SPEED.getValue());
-                                                Log.w(TAG, "Current fan speed: " + currentFanSpee);
-                                                if (currentFanSpee != null) {
-                                                    int speed = Integer.parseInt(currentFanSpee);
-                                                    speed++;
-                                                    if (speed > 7) speed = 7;
-                                                    updateData(CarConstants.CAR_HVAC_FAN_SPEED.getValue(), String.valueOf(speed));
-                                                    Log.w(TAG, "Fan speed increased to: " + speed);
-                                                }
-                                                break;
-                                            case 1025:
-                                                var currentFanSpeed = getUpdatedData(CarConstants.CAR_HVAC_FAN_SPEED.getValue());
-                                                Log.w(TAG, "Current fan speed: " + currentFanSpeed);
-                                                if (currentFanSpeed != null) {
-                                                    int speed = Integer.parseInt(currentFanSpeed);
-                                                    speed--;
-                                                    if (speed < 1) speed = 1;
-                                                    updateData(CarConstants.CAR_HVAC_FAN_SPEED.getValue(), String.valueOf(speed));
-                                                    Log.w(TAG, "Fan speed decreased to: " + speed);
-                                                }
-                                                break;
-                                        }
-                                    }
-                                }
-                            }
-                        });
+                        inputService.registerKeyEventListener(new int[]{-1}, inputListener);
                         Log.w(TAG, "InputService connected and listener registered successfully");
                     } catch (Exception e) {
                         Log.e(TAG, "Error registering key event listener", e);

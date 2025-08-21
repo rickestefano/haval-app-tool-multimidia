@@ -532,7 +532,7 @@ fun TelasTab() {
                     enableCustomIntegration = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
                 },
-                enabled = enableCustomIntegration
+                enabled = enableProjector
             )
             Spacer(Modifier.width(8.dp))
             Text(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.description)
