@@ -1,8 +1,10 @@
 package br.com.redesurftank.havalshisuku.managers;
 
 import android.annotation.SuppressLint;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -10,7 +12,13 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.KeyEvent;
 
+import com.autolink.cluster.ClusterMsgData;
+import com.autolink.clusterservice.IClusterCallback;
+import com.autolink.clusterservice.IClusterService;
+import com.beantechs.inputservice.IInputListener;
+import com.beantechs.inputservice.IInputService;
 import com.beantechs.intelligentvehiclecontrol.IIntelligentVehicleControlService;
 import com.beantechs.intelligentvehiclecontrol.sdk.IListener;
 import com.beantechs.voice.adapter.IBinderPool;
@@ -39,8 +47,8 @@ import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.CarInfo;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
-import br.com.redesurftank.havalshisuku.models.VoiceFunction;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
+import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 
@@ -155,6 +163,12 @@ public class ServiceManager {
     private IVehicle vehicle;
     private IDvr dvr;
     private IVehicleModel vehicleModel;
+    private IClusterService clusterService;
+    private ServiceConnection clusterServiceConnection;
+    private IInputService inputService;
+    private ServiceConnection inputServiceConnection;
+    private int clusterHeartBeatCount = 0;
+    private int clusterCardView = 0;
 
     private ServiceManager() {
         dataChangedListeners = new ArrayList<>();
@@ -188,6 +202,18 @@ public class ServiceManager {
             }
             if (vehicleModel != null) {
                 vehicleModel = null;  // Disconnect binder
+            }
+            if (clusterService != null) {
+                if (clusterServiceConnection != null) {
+                    context.unbindService(clusterServiceConnection);
+                }
+                clusterService = null;  // Disconnect binder
+            }
+            if (inputService != null) {
+                if (inputServiceConnection != null) {
+                    context.unbindService(inputServiceConnection);
+                }
+                inputService = null;  // Disconnect binder
             }
             if (handlerThread != null && handlerThread.isAlive()) {
                 handlerThread.quitSafely();
@@ -227,6 +253,125 @@ public class ServiceManager {
             dvr = IDvr.Stub.asInterface(new ShizukuBinderWrapper(dvrBinder));
             IBinder vehicleModelBinder = pool.queryBinder(13);
             vehicleModel = IVehicleModel.Stub.asInterface(new ShizukuBinderWrapper(vehicleModelBinder));
+            Intent clusterIntent = new Intent();
+            clusterIntent.setComponent(new ComponentName("com.autolink.clusterservice", "com.autolink.clusterservice.ClusterService"));
+            clusterServiceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder service) {
+                    clusterService = IClusterService.Stub.asInterface(service);
+                    try {
+                        clusterService.registerCallback(new IClusterCallback.Stub() {
+                            @Override
+                            public void callbackMsg(int msgId, ClusterMsgData data) {
+                                Log.w(TAG, "Cluster message received: " + msgId + ", data: " + data);
+                                if (msgId == 133) {
+                                    int whichCard = data.getIntValue();
+                                    clusterCardView = whichCard;
+                                    Log.w(TAG, "Cluster card changed: " + whichCard);
+                                } else if (msgId == 134) {
+                                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                                        int intValue = data.getIntValue();
+                                        if (intValue == 2) {
+                                            Log.w(TAG, "Cluster heartbeat reset requested");
+                                            sendHeartBeatToCluster();
+                                        }
+                                    }
+                                } else if (msgId == 135) {
+                                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                                        int intValue = data.getIntValue();
+                                        if (intValue == 1) {
+                                            Log.w(TAG, "Cluster ready to show");
+                                            sendClusterIntMsg(135, 1);
+                                        } else if (intValue == 2) {
+                                            Log.w(TAG, "Cluster ready to hide");
+                                            sendClusterIntMsg(135, 2);
+                                        } else if (intValue == 3 || intValue == 4) {
+                                            boolean show = (intValue == 3);
+                                            Log.w(TAG, "Cluster show or hide card: " + show);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error registering cluster callback", e);
+                    }
+                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                        sendAndroidReadyToCluster();
+                        backgroundHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                sendHeartBeatToCluster();
+                                backgroundHandler.postDelayed(this, 1000);
+
+                            }
+                        }, 1000);
+                    }
+                    Log.w(TAG, "ClusterService connected successfully");
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    clusterService = null;
+                    Log.w(TAG, "ClusterService disconnected");
+                }
+            };
+            context.bindService(clusterIntent, clusterServiceConnection, Context.BIND_AUTO_CREATE);
+            Intent inputIntent = new Intent("com.beantechs.inputservice.service_init");
+            inputIntent.setPackage("com.beantechs.inputservice");
+            inputServiceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder service) {
+                    Log.w(TAG, "InputService connected");
+                    inputService = IInputService.Stub.asInterface(service);
+                    try {
+                        inputService.registerKeyEventListener(new int[]{-1}, new IInputListener.Stub() {
+                            @Override
+                            public void dispatchKeyEvent(KeyEvent keyEvent) {
+                                Log.w(TAG, "Key event received: " + keyEvent);
+                                if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.getKey(), false)) {
+                                    if (clusterCardView == 1) {
+                                        switch (keyEvent.getKeyCode()) {
+                                            case 1024:
+                                                var currentFanSpee = getUpdatedData(CarConstants.CAR_HVAC_FAN_SPEED.getValue());
+                                                Log.w(TAG, "Current fan speed: " + currentFanSpee);
+                                                if (currentFanSpee != null) {
+                                                    int speed = Integer.parseInt(currentFanSpee);
+                                                    speed++;
+                                                    if (speed > 7) speed = 7;
+                                                    updateData(CarConstants.CAR_HVAC_FAN_SPEED.getValue(), String.valueOf(speed));
+                                                    Log.w(TAG, "Fan speed increased to: " + speed);
+                                                }
+                                                break;
+                                            case 1025:
+                                                var currentFanSpeed = getUpdatedData(CarConstants.CAR_HVAC_FAN_SPEED.getValue());
+                                                Log.w(TAG, "Current fan speed: " + currentFanSpeed);
+                                                if (currentFanSpeed != null) {
+                                                    int speed = Integer.parseInt(currentFanSpeed);
+                                                    speed--;
+                                                    if (speed < 1) speed = 1;
+                                                    updateData(CarConstants.CAR_HVAC_FAN_SPEED.getValue(), String.valueOf(speed));
+                                                    Log.w(TAG, "Fan speed decreased to: " + speed);
+                                                }
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        Log.w(TAG, "InputService connected and listener registered successfully");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error registering key event listener", e);
+                    }
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    inputService = null;
+                    Log.w(TAG, "InputService disconnected");
+                }
+            };
+            context.bindService(inputIntent, inputServiceConnection, Context.BIND_AUTO_CREATE);
             Log.w(TAG, "Services bound successfully");
             listener = new IListener.Stub() {
                 @Override
@@ -234,6 +379,13 @@ public class ServiceManager {
                     OnDataChanged(key, value);
                 }
             };
+            ShizukuUtils.runCommandAndGetOutput(new String[]{
+                    "settings", "put", "secure", "enabled_accessibility_services",
+                    "br.com.redesurftank.havalshisuku/.services.AccessibilityService"
+            });
+            ShizukuUtils.runCommandAndGetOutput(new String[]{
+                    "settings", "put", "secure", "accessibility_enabled", "1"
+            });
             controlService.registerDataChangedListener(context.getPackageName(), listener);
             Log.w(TAG, "Listener registered successfully");
             controlService.addListenerKey(App.getContext().getPackageName(), getCombinedKeys());
@@ -278,6 +430,43 @@ public class ServiceManager {
         } catch (RemoteException e) {
             Log.e(TAG, "Error during initialization", e);
             return false;
+        }
+    }
+
+    private void sendClusterIntMsg(int type, int value) {
+        if (clusterService == null) {
+            Log.e(TAG, "ClusterService not initialized");
+            return;
+        }
+        ClusterMsgData msg = new ClusterMsgData();
+        msg.setIntValue(value);
+        try {
+            clusterService.setMsg(type, msg);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error sending message to cluster service", e);
+        }
+    }
+
+    private void sendAndroidReadyToCluster() {
+        try {
+            var msg = new ClusterMsgData();
+            msg.setIntValue(1);
+            clusterService.setMsg(75, msg);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting cluster service message", e);
+        }
+    }
+
+    private void sendHeartBeatToCluster() {
+        if (clusterHeartBeatCount > 32767) {
+            clusterHeartBeatCount = 0; // Reset to avoid overflow
+        }
+        var msg = new ClusterMsgData();
+        msg.setIntValue(clusterHeartBeatCount++);
+        try {
+            clusterService.setMsg(134, msg);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error sending heartbeat to cluster service", e);
         }
     }
 
@@ -711,6 +900,10 @@ public class ServiceManager {
         }
 
         return carInfo;
+    }
+
+    public int getClusterCardView() {
+        return clusterCardView;
     }
 
     private static IBinder getSystemService(String serviceName) {

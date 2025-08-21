@@ -119,6 +119,7 @@ fun BasicSettingsTab() {
     var disableAvmCarStopped by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, false)) }
     var closeWindowOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.key, false)) }
     var closeWindowOnFoldMirror by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.key, false)) }
+    var enableControlAcViaSteeringWheel by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, false)) }
     var setStartupVolume by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.key, false)) }
     var volume by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.STARTUP_VOLUME.key, 1)) }
     var closeWindowsOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, false)) }
@@ -206,6 +207,17 @@ fun BasicSettingsTab() {
             )
             Spacer(Modifier.width(8.dp))
             Text(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.description)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = enableControlAcViaSteeringWheel,
+                onCheckedChange = {
+                    enableControlAcViaSteeringWheel = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, it) }
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.description)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
@@ -425,6 +437,7 @@ fun TelasTab() {
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     var enableProjector by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, false)) }
     var enableWarning by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false)) }
+    var enableCustomIntegration by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false)) }
     var nextKmText by remember { mutableStateOf(prefs.getInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, 12000).toString()) }
     var nextDateMillis by remember { mutableLongStateOf(prefs.getLong(SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key, 0L)) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -511,6 +524,18 @@ fun TelasTab() {
                     }
                 }
             }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = enableCustomIntegration,
+                onCheckedChange = {
+                    enableCustomIntegration = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
+                },
+                enabled = enableCustomIntegration
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.description)
         }
     }
 

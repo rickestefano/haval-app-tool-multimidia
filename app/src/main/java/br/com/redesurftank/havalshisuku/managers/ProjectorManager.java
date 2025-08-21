@@ -1,5 +1,7 @@
 package br.com.redesurftank.havalshisuku.managers;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,6 +15,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.projectors.InstrumentProjector2;
 import br.com.redesurftank.havalshisuku.projectors.InstrumentProjector;
 
@@ -21,9 +24,11 @@ public class ProjectorManager {
 
     private static ProjectorManager instance;
 
+    private SharedPreferences sharedPreferences;
     private DisplayManager displayManager;
     private InstrumentProjector instrumentProjector;
     private InstrumentProjector2 instrumentProjector2;
+    private InstrumentProjector2 instrumentProjector4;
 
     private final Map<Integer, BiConsumer<android.content.Context, Display>> projectorCreators = new HashMap<>();
 
@@ -35,11 +40,21 @@ public class ProjectorManager {
     }
 
     private ProjectorManager() {
-        /*projectorCreators.put(1, (ctx, disp) -> {
-            instrumentProjector = new InstrumentProjector(ctx, disp);
-            instrumentProjector.show();
-            Log.w(TAG, "InstrumentProjector initialized and displayed successfully");
-        });*/
+        sharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE);
+
+        if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+            projectorCreators.put(2, (ctx, disp) -> {
+                instrumentProjector2 = new InstrumentProjector2(ctx, disp);
+                instrumentProjector2.show();
+                Log.w(TAG, "InstrumentProjector2 initialized and displayed successfully");
+            });
+
+            projectorCreators.put(4, (ctx, disp) -> {
+                instrumentProjector4 = new InstrumentProjector2(ctx, disp);
+                instrumentProjector4.show();
+                Log.w(TAG, "instrumentProjector4 initialized and displayed successfully");
+            });
+        }
 
         projectorCreators.put(3, (ctx, disp) -> {
             instrumentProjector = new InstrumentProjector(ctx, disp);
@@ -89,6 +104,7 @@ public class ProjectorManager {
         DisplayManager.DisplayListener listener = new DisplayManager.DisplayListener() {
             @Override
             public void onDisplayAdded(int displayId) {
+                Log.w(TAG, "Display added: " + displayId);
                 if (pending.contains(displayId)) {
                     Display display = displayManager.getDisplay(displayId);
                     if (display != null) {
@@ -104,11 +120,13 @@ public class ProjectorManager {
             @Override
             public void onDisplayRemoved(int displayId) {
                 // Handle if needed
+                Log.w(TAG, "Display removed: " + displayId);
             }
 
             @Override
             public void onDisplayChanged(int displayId) {
                 // Handle if needed
+                Log.w(TAG, "Display changed: " + displayId);
             }
         };
         displayManager.registerDisplayListener(listener, new Handler(Looper.getMainLooper()));
