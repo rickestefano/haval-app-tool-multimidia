@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import br.com.redesurftank.App;
-import br.com.redesurftank.havalshisuku.listeners.IClusterCardChanged;
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged;
 import br.com.redesurftank.havalshisuku.listeners.IServiceManagerEvent;
 import br.com.redesurftank.havalshisuku.models.CarConstants;
@@ -95,7 +94,8 @@ public class ServiceManager {
             CarConstants.SYS_SETTINGS_AUDIO_MEDIA_VOLUME,
             CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
             CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL,
-            CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE
+            CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE,
+            CarConstants.CAR_BASIC_ENGINE_STATE
     };
 
     private static final CarConstants[] KEYS_TO_SAVE = {
@@ -151,6 +151,7 @@ public class ServiceManager {
     private final Map<String, String> dataCache;
     private SharedPreferences sharedPreferences;
     private Boolean closeWindowDueToeSpeed = false;
+    private Boolean closeSunroofDueToeSpeed = false;
     private HandlerThread handlerThread;
     private Handler backgroundHandler;
     private IListener.Stub listener;
@@ -677,25 +678,47 @@ public class ServiceManager {
                 if (closeWindowOnPowerOff) {
                     closeAllWindow();
                 }
+                boolean closeSunRoofOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.getKey(), false);
+                if (closeSunRoofOnPowerOff) {
+                    closeSunRoof();
+                }
             } else if ((key.equals(CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE.getValue()) && value.equals("0"))) {
-                boolean closeWindowOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.getKey(), false);
-                if (closeWindowOnPowerOff) {
+                boolean closeWindowOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.getKey(), false);
+                if (closeWindowOnFoldMirror) {
                     closeAllWindow();
                 }
-            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.getKey(), false)) {
+                boolean closeSunRoofOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.getKey(), false);
+                if (closeSunRoofOnFoldMirror) {
+                    closeSunRoof();
+                }
+            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) {
                 float currentSpeed = Float.parseFloat(value);
-                if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.getKey(), 0)) {
+                boolean closeWindowOnSpeed = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.getKey(), false);
+                boolean closeSunRoofOnSpeed = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.getKey(), false);
+                if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.getKey(), 15f)) {
                     if (!closeWindowDueToeSpeed) {
-                        closeAllWindow();
+                        if (closeWindowOnSpeed) {
+                            closeAllWindow();
+                        }
                         closeWindowDueToeSpeed = true;
                     }
-                } else if (currentSpeed <= 10 && closeWindowDueToeSpeed) {
+                }
+                if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.getKey(), 15f)) {
+                    if (!closeSunroofDueToeSpeed) {
+                        if (closeSunRoofOnSpeed) {
+                            closeSunRoof();
+                        }
+                        closeSunroofDueToeSpeed = true;
+                    }
+                }
+                if (currentSpeed <= 10 && (closeWindowDueToeSpeed || closeSunroofDueToeSpeed)) {
                     closeWindowDueToeSpeed = false;
-                    Log.w(TAG, "Speed is below 10, resetting closeWindowDueToeSpeed");
+                    closeSunroofDueToeSpeed = false;
+                }
+                if (currentSpeed <= 0 & sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
+                    dvr.setAVM(0);
                 }
             } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
-                dvr.setAVM(0);
-            } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue()) && Float.parseFloat(value) <= 0f && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
                 dvr.setAVM(0);
             }
         } catch (Exception e) {
@@ -711,24 +734,33 @@ public class ServiceManager {
                     vehicle.setWindowStatus(i, 1);
                 }
             }
-            var sunRoofStatus = vehicle.getSkylightLevel(0);
-            if (sunRoofStatus != 0) {
-                vehicle.setSkylightLevel(0);
-            }
-            backgroundHandler.postDelayed(() -> {
-                try {
-                    var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
-                    if (sunRoofBlockStatus != 0) {
-                        vehicle.setShadeScreensLevel(0);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error closing shade screens", e);
-                }
-            }, 5000);
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error closing all windows", e);
             return false;
+        }
+    }
+
+    public void closeSunRoof() {
+        try {
+            var sunRoofStatus = vehicle.getSkylightLevel(0);
+            if (sunRoofStatus != 0) {
+                vehicle.setSkylightLevel(0);
+            }
+            if (sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.getKey(), false)) {
+                backgroundHandler.postDelayed(() -> {
+                    try {
+                        var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
+                        if (sunRoofBlockStatus != 0) {
+                            vehicle.setShadeScreensLevel(0);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error closing shade screens", e);
+                    }
+                }, 5000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error closing sunroof", e);
         }
     }
 

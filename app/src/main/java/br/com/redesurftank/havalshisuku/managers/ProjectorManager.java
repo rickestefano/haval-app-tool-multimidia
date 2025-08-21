@@ -15,9 +15,10 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 import br.com.redesurftank.App;
+import br.com.redesurftank.havalshisuku.models.CarConstants;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
-import br.com.redesurftank.havalshisuku.projectors.InstrumentProjector2;
 import br.com.redesurftank.havalshisuku.projectors.InstrumentProjector;
+import br.com.redesurftank.havalshisuku.projectors.InstrumentProjector2;
 
 public class ProjectorManager {
     private static final String TAG = "ProjectorManager";

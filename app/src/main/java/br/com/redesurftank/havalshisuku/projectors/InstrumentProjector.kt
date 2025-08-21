@@ -16,6 +16,7 @@ import android.view.WindowManager
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.view.isVisible
 import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
@@ -73,6 +74,18 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
             RelativeLayout.LayoutParams.MATCH_PARENT,
             RelativeLayout.LayoutParams.MATCH_PARENT
         )
+
+        ServiceManager.getInstance().addDataChangedListener { key: String?, value: String? ->
+            ensureUi {
+                if (key == CarConstants.CAR_BASIC_ENGINE_STATE.value) {
+                    if (value == "-1" || value == "15") {
+                        rootLayout.isVisible = false;
+                    } else {
+                        rootLayout.isVisible = true;
+                    }
+                }
+            }
+        }
 
         setContentView(rootLayout)
 

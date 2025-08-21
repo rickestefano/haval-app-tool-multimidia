@@ -2,7 +2,6 @@ package br.com.redesurftank.havalshisuku.projectors
 
 import android.app.Presentation
 import android.content.Context
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Paint
@@ -19,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isVisible
+import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.ServiceManagerEventType
@@ -67,10 +67,12 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                         currentFanSpeed = value.toString()
                         fanText?.text = currentFanSpeed ?: "??"
                     }
+
                     CarConstants.CAR_HVAC_DRIVER_TEMPERATURE.value -> {
                         currentTemp = value.toString()
                         tempText?.text = "${currentTemp ?: "??"}°C"
                     }
+
                     else -> {}
                 }
             }
@@ -89,6 +91,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                             // Future view
                         }
                     }
+
                     ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL -> {
                         highlight(tempContainer, false)
                         highlight(fanContainer, false)
@@ -96,10 +99,23 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                             SteeringWheelAcControlType.FAN_SPEED -> {
                                 highlight(fanContainer, true)
                             }
+
                             SteeringWheelAcControlType.TEMPERATURE -> {
                                 highlight(tempContainer, true)
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        ServiceManager.getInstance().addDataChangedListener { key: String?, value: String? ->
+            circularView.post {
+                if (key == CarConstants.CAR_BASIC_ENGINE_STATE.value) {
+                    if (value == "-1" || value == "15") {
+                        circularView.isVisible = false;
+                    } else {
+                        circularView.isVisible = true;
                     }
                 }
             }
