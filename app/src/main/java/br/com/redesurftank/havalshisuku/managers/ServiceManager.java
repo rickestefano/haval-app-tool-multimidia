@@ -284,10 +284,13 @@ public class ServiceManager {
                     if (msgId == 133) {
                         int whichCard = data.getIntValue();
                         clusterCardView = whichCard;
-                        steeringWheelAcControlType = SteeringWheelAcControlType.FAN_SPEED;
-                        steeringWheelAcControlTypeIndex = 0;
                         dispatchServiceManagerEvent(ServiceManagerEventType.CLUSTER_CARD_CHANGED, clusterCardView);
-                        dispatchServiceManagerEvent(ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL, steeringWheelAcControlType);
+                        if (whichCard == 1) {
+                            var lastAcConfig = sharedPreferences.getString(SharedPreferencesKeys.LAST_CLUSTER_AC_CONFIG.getKey(), SteeringWheelAcControlType.FAN_SPEED.name());
+                            steeringWheelAcControlType = SteeringWheelAcControlType.valueOf(Objects.requireNonNullElse(lastAcConfig, SteeringWheelAcControlType.FAN_SPEED.name()));
+                            steeringWheelAcControlTypeIndex = Arrays.asList(SteeringWheelAcControlType.values()).indexOf(steeringWheelAcControlType);
+                            dispatchServiceManagerEvent(ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL, steeringWheelAcControlType);
+                        }
                         Log.w(TAG, "Cluster card changed: " + whichCard);
                     } else if (msgId == 134) {
                         if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
@@ -358,6 +361,7 @@ public class ServiceManager {
                                     steeringWheelAcControlTypeIndex = steeringWheelAcControlTypeIndex % SteeringWheelAcControlType.values().length;
                                     steeringWheelAcControlType = SteeringWheelAcControlType.values()[steeringWheelAcControlTypeIndex];
                                     dispatchServiceManagerEvent(ServiceManagerEventType.STEERING_WHEEL_AC_CONTROL, steeringWheelAcControlType);
+                                    sharedPreferences.edit().putString(SharedPreferencesKeys.LAST_CLUSTER_AC_CONFIG.getKey(), steeringWheelAcControlType.name()).apply();
                                     break;
                                 case 1024:
                                 case 1025: {
@@ -396,6 +400,14 @@ public class ServiceManager {
                                             }
                                         }
                                         break;
+                                        case POWER: {
+                                            var currentPowerMode = getUpdatedData(CarConstants.CAR_HVAC_POWER_MODE.getValue());
+                                            if (currentPowerMode != null) {
+                                                boolean powerMode = currentPowerMode.equals("1");
+                                                powerMode = !powerMode;
+                                                updateData(CarConstants.CAR_HVAC_POWER_MODE.getValue(), powerMode ? "1" : "0");
+                                            }
+                                        }
                                     }
                                 }
                                 break;

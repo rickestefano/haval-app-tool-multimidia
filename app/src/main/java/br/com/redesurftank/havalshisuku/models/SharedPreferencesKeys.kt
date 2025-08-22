@@ -32,5 +32,6 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK("bypassSelfInstallationIntegrityCheck", "Ignorar verificação de integridade da instalação"),
     SELF_INSTALLATION_INTEGRITY_CHECK("selfInstallationIntegrityCheck", "Verificação de integridade da instalação"),
     ADVANCE_USE("advanceUse", "Uso avançado"),
-    CURRENT_USER("currentUser", "Usuário atual")
+    CURRENT_USER("currentUser", "Usuário atual"),
+    LAST_CLUSTER_AC_CONFIG("lastClusterAcConfig", "Última configuração do ar-condicionado do cluster")
 }
