@@ -70,6 +70,14 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                         evaluateJsIfReady(webViewAc, "control('power', $value)")
                     }
 
+                    CarConstants.CAR_HVAC_CYCLE_MODE.value -> {
+                        evaluateJsIfReady(webViewAc, "control('recycle', $value)")
+                    }
+
+                    CarConstants.CAR_HVAC_AUTO_ENABLE.value -> {
+                        evaluateJsIfReady(webViewAc, "control('auto', $value)")
+                    }
+
                     else -> {}
                 }
             }
@@ -82,7 +90,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                         val card = args[0] as Int
                         circularView.isVisible = card != 0
                         webViewAc?.isVisible = false;
-                        when(card) {
+                        when (card) {
                             1 -> {
                                 setupAcControlView(circularView)
                             }
@@ -138,7 +146,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                         super.onPageFinished(view, url)
                         view?.let {
                             webViewsLoaded[it] = true
-                            initializeWebViewAc()
+                            updateValuesWebViewAc()
                             val queue = pendingJsQueues[it] ?: return
                             queue.forEach { js -> it.evaluateJavascript(js, null) }
                             pendingJsQueues.remove(it)
@@ -152,20 +160,24 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
             webViewAc?.isVisible = true
             webViewAc?.let {
                 if (webViewsLoaded[it] == true) {
-                    initializeWebViewAc()
+                    updateValuesWebViewAc()
                 }
             }
         }
     }
 
-    private fun initializeWebViewAc() {
+    private fun updateValuesWebViewAc() {
         val currentTemp = ServiceManager.getInstance().getData(CarConstants.CAR_HVAC_DRIVER_TEMPERATURE.value)
         val currentFanSpeed = ServiceManager.getInstance().getData(CarConstants.CAR_HVAC_FAN_SPEED.value)
         val currentAcState = ServiceManager.getInstance().getData(CarConstants.CAR_HVAC_POWER_MODE.value)
+        val currentRecycleMode = ServiceManager.getInstance().getData(CarConstants.CAR_HVAC_CYCLE_MODE.value)
+        val currentAutoMode = ServiceManager.getInstance().getData(CarConstants.CAR_HVAC_AUTO_ENABLE.value)
 
         evaluateJsIfReady(webViewAc, "control('temp', $currentTemp)")
         evaluateJsIfReady(webViewAc, "control('fan', $currentFanSpeed)")
         evaluateJsIfReady(webViewAc, "control('power', $currentAcState)")
+        evaluateJsIfReady(webViewAc, "control('recycle', $currentRecycleMode)")
+        evaluateJsIfReady(webViewAc, "control('auto', $currentAutoMode)")
         evaluateJsIfReady(webViewAc, "focus('fan')")
     }
 

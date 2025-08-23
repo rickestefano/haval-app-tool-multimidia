@@ -88,6 +88,7 @@ public class ServiceManager {
             CarConstants.CAR_HVAC_PASS_TEMPERATURE,
             CarConstants.CAR_HVAC_POWER_MODE,
             CarConstants.CAR_HVAC_SYNC_ENABLE,
+            CarConstants.CAR_HVAC_AUTO_ENABLE,
             CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG,
             CarConstants.SYS_AVM_AUTO_PREVIEW_ENABLE,
             CarConstants.SYS_AVM_PREVIEW_STATUS,
@@ -407,6 +408,28 @@ public class ServiceManager {
                                                 powerMode = !powerMode;
                                                 updateData(CarConstants.CAR_HVAC_POWER_MODE.getValue(), powerMode ? "1" : "0");
                                             }
+                                        }
+                                    }
+                                }
+                                break;
+                                case 1030: {
+                                    if (clusterCardView == 1) {
+                                        var currentCycleMode = getUpdatedData(CarConstants.CAR_HVAC_CYCLE_MODE.getValue());
+                                        if (currentCycleMode != null) {
+                                            boolean cycleMode = currentCycleMode.equals("1");
+                                            cycleMode = !cycleMode;
+                                            updateData(CarConstants.CAR_HVAC_CYCLE_MODE.getValue(), cycleMode ? "1" : "0");
+                                        }
+                                    }
+                                }
+                                break;
+                                case 1039: {
+                                    if(clusterCardView == 1){
+                                        var currentAcAutoMode = getUpdatedData(CarConstants.CAR_HVAC_AUTO_ENABLE.getValue());
+                                        if (currentAcAutoMode != null) {
+                                            boolean acAutoMode = currentAcAutoMode.equals("1");
+                                            acAutoMode = !acAutoMode;
+                                            updateData(CarConstants.CAR_HVAC_AUTO_ENABLE.getValue(), acAutoMode ? "1" : "0");
                                         }
                                     }
                                 }
