@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
     annotationProcessor(libs.annotation.processor)
     compileOnly(libs.annotation)
     debugImplementation(libs.ui.tooling)
