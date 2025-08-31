@@ -674,18 +674,18 @@ fun TelasTab() {
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     val formattedNextDate = if (nextDateMillis > 0) dateFormatter.format(nextDateMillis) else "Não definido"
-    
+
     val settingsList = listOf(
         SettingItem(
             title = "Projetor do painel",
             description = SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.description,
-            checked = enableProjector,
-            onCheckedChange = {
-                enableProjector = it
-                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
-                if (!it) {
-                    enableWarning = false
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
+                checked = enableProjector,
+                onCheckedChange = {
+                    enableProjector = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
+                    if (!it) {
+                        enableWarning = false
+                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
                     enableCustomIntegration = false
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
                     ServiceManager.getInstance().ensureSystemApps()
@@ -695,12 +695,12 @@ fun TelasTab() {
         SettingItem(
             title = "Aviso de revisão",
             description = SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.description,
-            checked = enableWarning,
-            onCheckedChange = {
-                enableWarning = it
-                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
-            },
-            enabled = enableProjector
+                checked = enableWarning,
+                onCheckedChange = {
+                    enableWarning = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
+                },
+                enabled = enableProjector
         ),
         SettingItem(
             title = "Integração de mídia customizada",
@@ -718,19 +718,16 @@ fun TelasTab() {
         )
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        TwoColumnSettingsLayout(settingsList = settingsList)
-        
-        if (enableWarning) {
-            StyledCard(
-                modifier = Modifier.padding(horizontal = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+    TwoColumnSettingsLayout(
+        settingsList = settingsList,
+        bottomContent = {
+            if (enableWarning) {
+                StyledCard(
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Column {
                             Text(
@@ -740,18 +737,18 @@ fun TelasTab() {
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    TextField(
-                        value = nextKmText,
-                        onValueChange = { newValue ->
-                            if (newValue.isEmpty() || newValue.toIntOrNull() != null) {
-                                nextKmText = newValue
-                                newValue.toIntOrNull()?.let {
-                                    prefs.edit { putInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, it) }
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            Row {
+                                TextField(
+                                    value = nextKmText,
+                                    onValueChange = { newValue ->
+                                        if (newValue.isEmpty() || newValue.toIntOrNull() != null) {
+                                            nextKmText = newValue
+                                            newValue.toIntOrNull()?.let {
+                                                prefs.edit { putInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, it) }
+                                            }
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.weight(1f),
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = Color(0xFF2A2F37),
@@ -761,14 +758,14 @@ fun TelasTab() {
                                         focusedIndicatorColor = Color(0xFF4A9EFF),
                                         unfocusedIndicatorColor = Color(0xFF3A3F47)
                                     )
-                    )
-                    Spacer(Modifier.width(8.dp))
+                                )
+                                Spacer(Modifier.width(8.dp))
                                 Button(
                                     onClick = {
-                        val currentKm = ServiceManager.getInstance().totalOdometer
-                        val newNextKm = currentKm + 12000
-                        nextKmText = newNextKm.toString()
-                        prefs.edit { putInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, newNextKm) }
+                                        val currentKm = ServiceManager.getInstance().totalOdometer
+                                        val newNextKm = currentKm + 12000
+                                        nextKmText = newNextKm.toString()
+                                        prefs.edit { putInt(SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key, newNextKm) }
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFF4A9EFF)
@@ -778,6 +775,7 @@ fun TelasTab() {
                                 }
                             }
                         }
+                        
                         Column {
                             Text(
                                 "Próxima data: $formattedNextDate",
@@ -794,14 +792,14 @@ fun TelasTab() {
                                     )
                                 ) {
                                     Text("Informar manual", color = Color.White)
-                    }
-                    Spacer(Modifier.width(8.dp))
+                                }
+                                Spacer(Modifier.width(8.dp))
                                 Button(
                                     onClick = {
-                        val cal = Calendar.getInstance()
-                        cal.add(Calendar.YEAR, 1)
-                        nextDateMillis = cal.timeInMillis
-                        prefs.edit { putLong(SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key, nextDateMillis) }
+                                        val cal = Calendar.getInstance()
+                                        cal.add(Calendar.YEAR, 1)
+                                        nextDateMillis = cal.timeInMillis
+                                        prefs.edit { putLong(SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key, nextDateMillis) }
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFF4A9EFF)
@@ -813,29 +811,33 @@ fun TelasTab() {
                         }
                     }
                 }
+            }
         }
-    }
+    )
 
-    
+
     if (showDatePicker) {
         val calendar = Calendar.getInstance()
         if (nextDateMillis > 0) calendar.timeInMillis = nextDateMillis
 
-        LaunchedEffect(Unit) {
-            val dialog = DatePickerDialog(
-                context,
-                { _, year, month, day ->
-                    val cal = Calendar.getInstance()
-                    cal.set(year, month, day)
-                    nextDateMillis = cal.timeInMillis
-                    prefs.edit { putLong(SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key, nextDateMillis) }
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-            )
-            dialog.setOnDismissListener { showDatePicker = false }
-            dialog.show()
+        LaunchedEffect(showDatePicker) {
+            if (showDatePicker) {
+                val dialog = DatePickerDialog(
+                    context,
+                    { _, year, month, day ->
+                        val cal = Calendar.getInstance()
+                        cal.set(year, month, day)
+                        nextDateMillis = cal.timeInMillis
+                        prefs.edit { putLong(SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key, nextDateMillis) }
+                        showDatePicker = false
+                    },
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH),
+                    calendar.get(Calendar.DAY_OF_MONTH)
+                )
+                dialog.setOnDismissListener { showDatePicker = false }
+                dialog.show()
+            }
         }
     }
 }
@@ -1841,68 +1843,6 @@ fun InformacoesTab() {
                 }
             }
         }
-        
-        // Seção de Apoio
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF13151A)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    "Apoie o Desenvolvimento",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                
-                Text(
-                    "Utilizamos ferramentas de IA pagas para acelerar o desenvolvimento e entregar novas funcionalidades mais rapidamente. Hoje bancamos tudo do próprio bolso, mas gostaríamos do apoio da comunidade para continuar evoluindo o app.",
-                    fontSize = 14.sp,
-                    color = Color(0xFFB0B8C4),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
-                )
-                
-                // QR Code Image
-                Image(
-                    painter = painterResource(id = R.drawable.qr_code_pix),
-                    contentDescription = "QR Code PIX",
-                    modifier = Modifier
-                        .size(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                )
-                
-                Text(
-                    "Chave PIX (aleatória):",
-                    fontSize = 14.sp,
-                    color = Color(0xFFB0B8C4),
-                    fontWeight = FontWeight.Normal
-                )
-                
-                Text(
-                    "3ee82e85-3608-471e-86e7-aafc33c409df",
-                    fontSize = 14.sp,
-                    color = Color(0xFF4A9EFF),
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
-                )
-                
-                Text(
-                    "Qualquer contribuição é bem-vinda! 💙",
-                    fontSize = 14.sp,
-                    color = Color(0xFFB0B8C4)
-                )
-            }
-        }
-
     }
 
     if (showAdvancedDialog) {
