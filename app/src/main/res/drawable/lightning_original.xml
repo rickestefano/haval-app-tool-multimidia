@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    
+    <!-- Lightning bolt - exact path from Frame.svg -->
+    <path
+        android:pathData="M 354.828125,104.316406 L 175.608678,248.572201 L 239.223671,249.289724 L 157.828125,408.316406 L 325.062952,256.316406 L 258.620128,256.316406 Z"
+        android:fillColor="#4A9EFF"/>
+</vector>

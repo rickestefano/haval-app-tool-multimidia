@@ -11,8 +11,6 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-
-
     <application
         android:name="br.com.redesurftank.App"
         android:allowBackup="true"
@@ -24,15 +22,25 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HavalShisuku">
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:label="@string/title_activity_main"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:theme="@style/Theme.HavalShisuku">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:label="@string/title_activity_main"
+            android:theme="@style/Theme.HavalShisuku">
         </activity>
 
         <service

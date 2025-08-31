@@ -15,7 +15,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +45,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -90,11 +96,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -118,10 +129,13 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.DeveloperMode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import br.com.redesurftank.App
+import br.com.redesurftank.havalshisuku.R
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
@@ -129,6 +143,7 @@ import br.com.redesurftank.havalshisuku.models.AppInfo
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
+import br.com.redesurftank.havalshisuku.ui.components.*
 import br.com.redesurftank.havalshisuku.utils.FridaUtils
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils
 import kotlinx.coroutines.Dispatchers
@@ -172,81 +187,104 @@ fun MainScreen(modifier: Modifier = Modifier) {
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
     
-    val menuItems = if (advancedUse) {
-        listOf(
-            DrawerMenuItem("Configurações Básicas", Icons.Default.Settings),
-            DrawerMenuItem("Telas", Icons.Default.SmartDisplay),
-            DrawerMenuItem("Valores Atuais", Icons.Default.DeveloperMode),
-            DrawerMenuItem("Instalar Aplicativos", Icons.Default.ShoppingCart),
-            DrawerMenuItem("Informações", Icons.Default.Info),
-            DrawerMenuItem("Frida Hooks", Icons.Default.Build)
-        )
-    } else {
-        listOf(
-            DrawerMenuItem("Configurações Básicas", Icons.Default.Settings),
-            DrawerMenuItem("Telas", Icons.Default.SmartDisplay),
-            DrawerMenuItem("Valores Atuais", Icons.Default.DeveloperMode),
-            DrawerMenuItem("Instalar Aplicativos", Icons.Default.ShoppingCart),
-            DrawerMenuItem("Informações", Icons.Default.Info)
-        )
+    val menuItems = buildList {
+        add(DrawerMenuItem("Configurações", Icons.Default.Settings))
+        add(DrawerMenuItem("Telas", Icons.Default.SmartDisplay))
+        add(DrawerMenuItem("Valores Atuais", Icons.Default.DeveloperMode))
+        add(DrawerMenuItem("Instalar Apps", Icons.Default.ShoppingCart))
+        add(DrawerMenuItem("Informações", Icons.Default.Info))
+        if (advancedUse) {
+            add(DrawerMenuItem("Frida Hooks", Icons.Default.Build))
+        }
     }
     
     var selectedItem by remember { mutableStateOf(0) }
-    val currentTitle = menuItems[selectedItem].title
     
     Row(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF151920))
+            .background(AppColors.Background)
     ) {
         // Fixed Side Menu
         Surface(
             modifier = Modifier
-                .width(280.dp)
+                .width(AppDimensions.MenuWidth)
                 .fillMaxHeight(),
-            color = Color(0xFF1E2329),
+            color = Color(0xFF13151A),
             shadowElevation = 4.dp
         ) {
             Column(
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier
+                    .fillMaxHeight()
             ) {
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    "Menu",
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                HorizontalDivider(color = Color(0xFF3A3F47), thickness = 1.dp)
-                Spacer(Modifier.height(8.dp))
-                
                 menuItems.forEachIndexed { index, item ->
-                    NavigationDrawerItem(
-                        icon = {
+                    val animatedWidth by animateFloatAsState(
+                        targetValue = if (selectedItem == index) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = 200,
+                            easing = FastOutSlowInEasing
+                        ),
+                        label = "backgroundWidth"
+                    )
+                    
+                    val borderAlpha by animateFloatAsState(
+                        targetValue = if (selectedItem == index) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = 0,
+                            delayMillis = 0
+                        ),
+                        label = "borderAlpha"
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(AppDimensions.MenuItemHeight)
+                            .clickable { selectedItem = index },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        // Animated background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(animatedWidth)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFF152031),
+                                            Color(0xFF13151A)
+                                        )
+                                    )
+                                )
+                                .drawBehind {
+                                    drawLine(
+                                        color = Color(0xFF0B84FF).copy(alpha = borderAlpha),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(0f, size.height),
+                                        strokeWidth = 10.dp.toPx()
+                                    )
+                                }
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        ) {
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.title,
-                                tint = if (selectedItem == index) Color(0xFF4A9EFF) else Color(0xFFB0B8C4)
+                                tint = if (selectedItem == index) AppColors.MenuSelectedIcon else AppColors.MenuUnselectedIcon,
+                                modifier = Modifier.size(AppDimensions.IconSize)
                             )
-                        },
-                        label = { 
+                            Spacer(modifier = Modifier.width(14.dp))
                             Text(
                                 item.title,
-                                color = if (selectedItem == index) Color(0xFF4A9EFF) else Color(0xFFB0B8C4),
-                                fontSize = 14.sp
+                                color = if (selectedItem == index) AppColors.TextPrimary else AppColors.MenuUnselectedText,
+                                fontSize = 20.sp,
+                                fontWeight = if (selectedItem == index) FontWeight.Medium else FontWeight.Normal
                             )
-                        },
-                        selected = selectedItem == index,
-                        onClick = {
-                            selectedItem = index
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFF2A2F37),
-                            unselectedContainerColor = Color.Transparent
-                        )
-                    )
+                        }
+                    }
                 }
             }
         }
@@ -256,35 +294,10 @@ fun MainScreen(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .background(Color(0xFF151920))
-        ) {
-            // Top Bar
-            Surface(
-                color = Color(0xFF1E2329),
-                shadowElevation = 2.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        currentTitle,
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            
+                .background(AppColors.Background)
+        ) {    
             // Content Area
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF151920))
-            ) {
+            ContentArea {
                 when (selectedItem) {
             0 -> BasicSettingsTab()
             1 -> TelasTab()
@@ -302,72 +315,6 @@ data class DrawerMenuItem(
     val title: String,
     val icon: ImageVector
 )
-
-@Composable
-fun SettingCard(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable(enabled = enabled) { onCheckedChange(!checked) },
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E2329)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (enabled) Color.White else Color(0xFF808080),
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Switch(
-                    checked = checked,
-                    onCheckedChange = null, // Desabilita o clique direto no Switch
-                    enabled = enabled,
-                    modifier = Modifier.scale(0.9f),
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF4A9EFF),
-                        uncheckedThumbColor = Color(0xFFB0B8C4),
-                        uncheckedTrackColor = Color(0xFF3A3F47),
-                        uncheckedBorderColor = Color.Transparent,
-                        checkedBorderColor = Color.Transparent
-                    )
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = description,
-                fontSize = 11.sp,
-                color = if (enabled) Color(0xFFB0B8C4) else Color(0xFF606060),
-                lineHeight = 14.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
 
 @Composable
 fun BasicSettingsTab() {
@@ -389,7 +336,7 @@ fun BasicSettingsTab() {
     var volume by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.STARTUP_VOLUME.key, 1)) }
     var closeWindowsOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, false)) }
     var closeSunroofOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.key, false)) }
-    var speedThreshold by remember { mutableFloatStateOf(prefs.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.key, 15f)) }
+    var speedThreshold by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.SPEED_THRESHOLD.key, 15)) }
     var closeSunroofSpeedThreshold by remember { mutableFloatStateOf(prefs.getFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.key, 15f)) }
     var enableAutoBrightness by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, false)) }
     var nightStartHour by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, 20)) }
@@ -398,14 +345,6 @@ fun BasicSettingsTab() {
     var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
-    
-    data class SettingItem(
-        val title: String,
-        val description: String,
-        val checked: Boolean,
-        val onCheckedChange: (Boolean) -> Unit,
-        val enabled: Boolean = true
-    )
     
     val settingsList = mutableListOf<SettingItem>()
     
@@ -424,35 +363,6 @@ fun BasicSettingsTab() {
     }
     
     settingsList.addAll(listOf(
-        SettingItem(
-            title = "Manter desativado monitoramento de distrações",
-            description = "Desabilita alertas de distração durante a condução",
-                checked = disableMonitoring,
-                onCheckedChange = {
-                    disableMonitoring = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, it) }
-                    ServiceManager.getInstance().setMonitoringEnabled(!it)
-                }
-        ),
-        SettingItem(
-            title = "Desativar AVAS",
-            description = "Sistema de alerta de veículo silencioso",
-                checked = disableAvas,
-                onCheckedChange = {
-                    disableAvas = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, it) }
-                    ServiceManager.getInstance().setAvasEnabled(!it)
-                }
-        ),
-        SettingItem(
-            title = "Desativar câmera AVM quando parado",
-            description = "Desliga câmera de visão 360° quando o veículo está parado",
-                checked = disableAvmCarStopped,
-                onCheckedChange = {
-                    disableAvmCarStopped = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, it) }
-                }
-        ),
         SettingItem(
             title = "Fechar janela ao desligar o veículo",
             description = "Fecha automaticamente as janelas quando o motor é desligado",
@@ -499,31 +409,20 @@ fun BasicSettingsTab() {
                 }
         ),
         SettingItem(
-            title = "Controle do A/C pelo volante",
-            description = SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.description,
-                checked = enableControlAcViaSteeringWheel,
-                onCheckedChange = {
-                    enableControlAcViaSteeringWheel = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, it) }
-                }
-        ),
-        SettingItem(
-            title = "Definir volume inicial",
-            description = SharedPreferencesKeys.SET_STARTUP_VOLUME.description,
-                checked = setStartupVolume,
-                onCheckedChange = {
-                    setStartupVolume = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.key, it) }
-                }
-        ),
-        SettingItem(
             title = "Fechar janelas com velocidade",
             description = SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.description,
                 checked = closeWindowsOnSpeed,
                 onCheckedChange = {
                     closeWindowsOnSpeed = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, it) }
-                }
+                },
+                sliderValue = speedThreshold,
+                sliderRange = 10..120,
+                onSliderChange = { newSpeed ->
+                    speedThreshold = newSpeed
+                    prefs.edit { putInt(SharedPreferencesKeys.SPEED_THRESHOLD.key, newSpeed) }
+                },
+                sliderLabel = "Velocidade: $speedThreshold km/h"
         ),
         SettingItem(
             title = "Fechar teto solar com velocidade",
@@ -532,6 +431,51 @@ fun BasicSettingsTab() {
                 onCheckedChange = {
                     closeSunroofOnSpeed = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.key, it) }
+                },
+                sliderValue = closeSunroofSpeedThreshold.toInt(),
+                sliderRange = 10..120,
+                onSliderChange = { newSpeed ->
+                    closeSunroofSpeedThreshold = newSpeed.toFloat()
+                    prefs.edit { putFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.key, newSpeed.toFloat()) }
+                },
+                sliderLabel = "Velocidade: ${closeSunroofSpeedThreshold.toInt()} km/h"
+        ),
+        SettingItem(
+            title = "Manter desativado monitoramento de distrações",
+            description = "Desabilita alertas de distração durante a condução",
+                checked = disableMonitoring,
+                onCheckedChange = {
+                    disableMonitoring = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, it) }
+                    ServiceManager.getInstance().setMonitoringEnabled(!it)
+                }
+        ),
+        SettingItem(
+            title = "Desativar AVAS",
+            description = "Sistema de alerta de veículo silencioso",
+                checked = disableAvas,
+                onCheckedChange = {
+                    disableAvas = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, it) }
+                    ServiceManager.getInstance().setAvasEnabled(!it)
+                }
+        ),
+        SettingItem(
+            title = "Desativar câmera AVM quando parado",
+            description = "Desliga câmera de visão 360° quando o veículo está parado",
+                checked = disableAvmCarStopped,
+                onCheckedChange = {
+                    disableAvmCarStopped = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, it) }
+                }
+        ),
+        SettingItem(
+            title = "Controle do A/C pelo volante",
+            description = SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.description,
+                checked = enableControlAcViaSteeringWheel,
+                onCheckedChange = {
+                    enableControlAcViaSteeringWheel = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, it) }
                 }
         ),
         SettingItem(
@@ -543,33 +487,26 @@ fun BasicSettingsTab() {
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, it) }
                     AutoBrightnessManager.getInstance().setEnabled(it)
                 }
-            )
+        ),
+        SettingItem(
+            title = "Definir volume inicial",
+            description = SharedPreferencesKeys.SET_STARTUP_VOLUME.description,
+                checked = setStartupVolume,
+                onCheckedChange = {
+                    setStartupVolume = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.key, it) }
+                },
+                sliderValue = volume,
+                sliderRange = 0..40,
+                onSliderChange = { newVolume ->
+                    volume = newVolume
+                    prefs.edit { putInt(SharedPreferencesKeys.STARTUP_VOLUME.key, newVolume) }
+                },
+                sliderLabel = "Volume: $volume"
+        )
     ))
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF151920))
-    ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            gridItems(settingsList) { setting ->
-                SettingCard(
-                    title = setting.title,
-                    description = setting.description,
-                    checked = setting.checked,
-                    onCheckedChange = setting.onCheckedChange,
-                    enabled = setting.enabled
-                )
-            }
-        }
-    }
+    TwoColumnSettingsLayout(settingsList = settingsList)
     if (showStartPicker) {
         LaunchedEffect(Unit) {
             val dialog = TimePickerDialog(
@@ -622,10 +559,7 @@ fun FridaHooksTab() {
     var showFridaDialog by remember { mutableStateOf(false) }
     var showManualDialog by remember { mutableStateOf(false) }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF151920))
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
@@ -659,10 +593,9 @@ fun FridaHooksTab() {
         item {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E2329)
+                    containerColor = Color(0xFF13151A)
                 )
             ) {
                 Button(
@@ -741,60 +674,62 @@ fun TelasTab() {
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     val formattedNextDate = if (nextDateMillis > 0) dateFormatter.format(nextDateMillis) else "Não definido"
+    
+    val settingsList = listOf(
+        SettingItem(
+            title = "Projetor do painel",
+            description = SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.description,
+            checked = enableProjector,
+            onCheckedChange = {
+                enableProjector = it
+                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
+                if (!it) {
+                    enableWarning = false
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
+                }
+            }
+        ),
+        SettingItem(
+            title = "Aviso de revisão",
+            description = SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.description,
+            checked = enableWarning,
+            onCheckedChange = {
+                enableWarning = it
+                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
+            },
+            enabled = enableProjector
+        ),
+        SettingItem(
+            title = "Integração de mídia customizada",
+            description = SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.description,
+            checked = enableCustomIntegration,
+            onCheckedChange = {
+                enableCustomIntegration = it
+                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
+            },
+            enabled = enableProjector
+        )
+    )
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF151920))
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item {
-            SettingCard(
-                title = "Projetor do painel",
-                description = SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.description,
-                checked = enableProjector,
-                onCheckedChange = {
-                    enableProjector = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
-                    if (!it) {
-                        enableWarning = false
-                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
-                    }
-                }
-            )
-        }
-        item {
-            SettingCard(
-                title = "Aviso de revisão",
-                description = SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.description,
-                checked = enableWarning,
-                onCheckedChange = {
-                    enableWarning = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
-                },
-                enabled = enableProjector
-            )
-        }
+        TwoColumnSettingsLayout(settingsList = settingsList)
+        
         if (enableWarning) {
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E2329)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+            StyledCard(
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Column {
                             Text(
                                 "Próxima KM:",
                                 color = Color.White,
-                                fontSize = 14.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -840,7 +775,7 @@ fun TelasTab() {
                             Text(
                                 "Próxima data: $formattedNextDate",
                                 color = Color.White,
-                                fontSize = 14.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -871,22 +806,10 @@ fun TelasTab() {
                         }
                     }
                 }
-            }
-        }
-        item {
-            SettingCard(
-                title = "Integração de mídia customizada",
-                description = SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.description,
-                checked = enableCustomIntegration,
-                onCheckedChange = {
-                    enableCustomIntegration = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
-                },
-                enabled = enableProjector
-            )
         }
     }
 
+    
     if (showDatePicker) {
         val calendar = Calendar.getInstance()
         if (nextDateMillis > 0) calendar.timeInMillis = nextDateMillis
@@ -944,10 +867,8 @@ fun CurrentValuesTab() {
         }
     }
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF151920))
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
+        .padding(12.dp)
     ) {
         if (advancedUse) {
             Button(
@@ -996,7 +917,7 @@ fun CurrentValuesTab() {
                     } else Modifier
                         ),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E2329)
+                        containerColor = Color(0xFF13151A)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -1004,7 +925,7 @@ fun CurrentValuesTab() {
                         "$key: $value",
                         modifier = Modifier.padding(8.dp),
                         color = Color.White,
-                        fontSize = 14.sp
+                        fontSize = 18.sp
                     )
                 }
             }
@@ -1087,6 +1008,47 @@ fun CurrentValuesTab() {
                     Text("Cancelar")
                 }
             }
+        )
+    }
+}
+
+@Composable
+fun ContentArea(
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.Background)
+            .padding(AppDimensions.ContentPadding)
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun AppActionButton(
+    text: String,
+    onClick: () -> Unit,
+    isPrimary: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isPrimary) AppColors.Primary else AppColors.ButtonSecondary
+        ),
+        shape = RoundedCornerShape(AppDimensions.ButtonCornerRadius),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(
+            text = text,
+            color = AppColors.TextPrimary,
+            fontSize = if (isPrimary) 14.sp else 13.sp,
+            fontWeight = if (isPrimary) FontWeight.Medium else FontWeight.Normal
         )
     }
 }
@@ -1260,17 +1222,14 @@ fun InstallAppsTab() {
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(5),
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF151920))
-            .padding(16.dp),
+        columns = GridCells.Fixed(4),
+        modifier = Modifier.fillMaxSize().padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // URL Input Section
-        item(span = { GridItemSpan(5) }) {
-            Column(
+        item(span = { GridItemSpan(4) }) {
+    Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
@@ -1299,7 +1258,8 @@ fun InstallAppsTab() {
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF4A9EFF)
                             ),
-                            modifier = Modifier.height(56.dp)
+                            modifier = Modifier.height(56.dp),
+                            shape = RoundedCornerShape(0.dp)
                         ) {
                             Text("Instalar via URL", color = Color.White)
                         }
@@ -1315,14 +1275,14 @@ fun InstallAppsTab() {
                 }
                 
                 if (installResult.isNotEmpty()) {
-                    Text(installResult, color = Color.White, fontSize = 12.sp)
+                    Text(installResult, color = Color.White, fontSize = 14.sp)
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Aplicativos disponíveis:",
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -1330,7 +1290,7 @@ fun InstallAppsTab() {
         
         // Loading indicator
         if (isLoading) {
-            item(span = { GridItemSpan(5) }) {
+            item(span = { GridItemSpan(4) }) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1343,8 +1303,24 @@ fun InstallAppsTab() {
                 }
             }
         } else {
-            // Apps Grid
-            gridItems(apps) { app ->
+                        // Apps Grid - Ordenados por prioridade: Atualizar > Instalar > Instalados
+            // Dentro de cada grupo, ordena alfabeticamente
+            val sortedApps = apps.sortedWith(compareBy(
+                { app ->
+                    val installedVersion = getInstalledVersion(app.packageName)
+                    val isInstalled = installedVersion != null
+                    val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
+                    
+                    when {
+                        needsUpdate -> 0  // Prioridade máxima: precisa atualizar
+                        !isInstalled -> 1 // Segunda prioridade: disponível para instalar
+                        else -> 2         // Última prioridade: já instalado e atualizado
+                    }
+                },
+                { app -> app.name.lowercase() } // Ordenação alfabética dentro de cada grupo
+            ))
+            
+            gridItems(sortedApps) { app ->
                     val installedVersion = getInstalledVersion(app.packageName)
                     val isInstalled = installedVersion != null
                     val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
@@ -1353,16 +1329,23 @@ fun InstallAppsTab() {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.8f),
+                        .aspectRatio(1.2f)
+                        .padding(vertical = 16.dp, horizontal = 16.dp)
+                        .border(
+                            width = 1.dp,
+                            color = Color(0xFF1D2430),
+                            shape = RoundedCornerShape(0.dp),
+                        ),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E2329)
+                        containerColor = Color(0xFF13151A)
                     ),
+                    shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(6.dp),
+                            .padding(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -1371,14 +1354,14 @@ fun InstallAppsTab() {
                         ) {
                             // App Icon Container with padding
                             Box(
-                                modifier = Modifier.size(42.dp),
+                                modifier = Modifier.size(80.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                                                 Surface(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(6.dp),
-                                    shape = RoundedCornerShape(6.dp),
+                                        .padding(8.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     color = Color(0xFF2A2F37)
                                 ) {
                                     if (!app.iconUrl.isNullOrEmpty()) {
@@ -1397,7 +1380,7 @@ fun InstallAppsTab() {
                                                 Log.e(TAG, "Error loading icon for ${app.name}: ${it.result.throwable}")
                                             }
                                         )
-                                    } else {
+                            } else {
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier.fillMaxSize()
@@ -1406,43 +1389,43 @@ fun InstallAppsTab() {
                                                 Icons.Default.Build,
                                                 contentDescription = app.name,
                                                 tint = Color(0xFF4A9EFF),
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(32.dp)
                                             )
                                         }
                                     }
                                 }
                             }
                             
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             
                             // App Name
                             Text(
                                 app.name,
-                                fontSize = 9.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.White,
-                                maxLines = 1,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center,
-                                lineHeight = 10.sp
+                                lineHeight = 18.sp
                             )
                             
                             // Version info
                             Text(
                                 "v${app.version}",
-                                fontSize = 8.sp,
+                                fontSize = 12.sp,
                                 color = Color(0xFFB0B8C4),
-                                lineHeight = 9.sp
+                                lineHeight = 14.sp
                             )
                             
                             if (isInstalled) {
                                 Text(
                                     "Inst: v${installedVersion}",
-                                    fontSize = 7.sp,
+                                    fontSize = 11.sp,
                                     color = Color(0xFF808080),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    lineHeight = 8.sp
+                                    lineHeight = 12.sp
                                 )
                             }
                         }
@@ -1466,56 +1449,29 @@ fun InstallAppsTab() {
                                     Text(
                                         "${(progress * 100).toInt()}%",
                                         color = Color.White,
-                                        fontSize = 8.sp
+                                        fontSize = 12.sp
                                     )
                                 }
                             } else {
                                 Column(
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    if (!isInstalled) {
-                                        Button(
+                                    // Botão principal (Instalar ou Atualizar)
+                                    if (!isInstalled || needsUpdate) {
+                                        AppActionButton(
+                                            text = if (!isInstalled) "Instalar" else "Atualizar",
                                             onClick = { startDownload(app) },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(26.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF4A9EFF)
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            contentPadding = PaddingValues(0.dp)
-                                        ) { 
-                                            Text("Instalar", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Medium) 
-                                        }
-                                    } else if (needsUpdate) {
-                                        Button(
-                                            onClick = { startDownload(app) },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(26.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF4A9EFF)
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            contentPadding = PaddingValues(0.dp)
-                                        ) { 
-                                            Text("Atualizar", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Medium) 
-                                        }
+                                            isPrimary = true
+                                        )
                                     }
+                                    
+                                    // Botão de desinstalar
                                     if (isInstalled) {
-                                        Button(
+                                        AppActionButton(
+                                            text = "Desinstalar",
                                             onClick = { uninstall(app.packageName) },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(24.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF3A3F47)
-                                            ),
-                                            shape = RoundedCornerShape(10.dp),
-                                            contentPadding = PaddingValues(0.dp)
-                                        ) { 
-                                            Text("Desinstalar", color = Color.White, fontSize = 8.sp) 
-                                        }
+                                            isPrimary = false
+                                        )
                                     }
                                 }
                             }
@@ -1707,49 +1663,111 @@ fun InformacoesTab() {
         }
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF151920))
-            .padding(16.dp),
+            .verticalScroll(scrollState)
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Seção de Status
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF13151A)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Status do Sistema",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                
+                HorizontalDivider(color = Color(0xFF1D2430))
+                
         if (!bypassSelfInstallationCheck) {
-            Text(
-                "Instalado corretamente: ${if (selfInstallationCheck) "Sim" else "Não"}",
-                color = Color.White
-            )
-        }
-        Text(
-            "Estado: ${if (isActive) "Ativo" else "Inativo"}",
-            color = Color.White
-        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Instalado corretamente:", color = Color(0xFFB0B8C4))
+                        Text(
+                            if (selfInstallationCheck) "Sim" else "Não",
+                            color = if (selfInstallationCheck) Color(0xFF4ADE80) else Color(0xFFEF4444)
+                        )
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Estado:", color = Color(0xFFB0B8C4))
+                    Text(
+                        if (isActive) "Ativo" else "Inativo",
+                        color = if (isActive) Color(0xFF4ADE80) else Color(0xFFEF4444),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
         if (isActive) {
-            Text(
-                "Tempo para receber BOOT_COMPLETED: $formattedTime",
-                color = Color.White
-            )
-            Text(
-                "Tempo para começar a inicializar: $formattedTime2",
-                color = Color.White
-            )
-            Text(
-                "Tempo para inicializar: $formattedTime3",
-                color = Color.White
-            )
-        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Boot Completed:", color = Color(0xFFB0B8C4), fontSize = 14.sp)
+                        Text(formattedTime, color = Color.White, fontSize = 14.sp)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Início:", color = Color(0xFFB0B8C4), fontSize = 14.sp)
+                        Text(formattedTime2, color = Color.White, fontSize = 14.sp)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Inicialização:", color = Color(0xFFB0B8C4), fontSize = 14.sp)
+                        Text(formattedTime3, color = Color.White, fontSize = 14.sp)
+                    }
+                }
+                
+                HorizontalDivider(color = Color(0xFF1D2430))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Versão", color = Color(0xFFB0B8C4), fontSize = 14.sp)
         Text(
-            "Versão: $version",
-            color = Color.White,
-            modifier = Modifier.combinedClickable(
-                onClick = {
+                            version,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable {
                     clickCount++
                     if (clickCount >= 5) {
                         showAdvancedDialog = true
                         clickCount = 0
                     }
-                },
-                onLongClick = {
+                            }
+                        )
+                    }
+                    
+                    Button(
+                        onClick = {
                     scope.launch {
                         val (latest, dlUrl) = getLatestReleaseInfo()
                         if (latest != null && dlUrl != null) {
@@ -1760,30 +1778,124 @@ fun InformacoesTab() {
                                 downloadUrl = dlUrl
                                 updateAvailable = true
                             } else {
-                                updateMessage = "Atualizado"
+                                        updateMessage = "Você está na versão mais recente"
                                 showUpdateDialog = true
                             }
                         } else {
-                            updateMessage = "Erro na verificação"
+                                    updateMessage = "Erro ao verificar atualizações"
                             showUpdateDialog = true
                         }
                     }
+                        },
+                        modifier = Modifier.height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.Primary
+                        ),
+                        shape = RoundedCornerShape(AppDimensions.ButtonCornerRadius)
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Buscar Atualizações",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Buscar Atualizações", fontSize = 14.sp)
+                    }
                 }
-            )
-        )
-        Button(
-            onClick = {
+
+                HorizontalDivider(color = Color(0xFF1D2430))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = {
             val intent = Intent(Intent.ACTION_MAIN).apply {
                 component = ComponentName("com.android.settings", "com.android.settings.Settings")
             }
             context.startActivity(intent)
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4A9EFF)
-            )
-        ) {
-            Text(stringResource(R.string.open_android_settings), color = Color.White)
+                        },
+                        modifier = Modifier
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.Primary
+                        ),
+                        shape = RoundedCornerShape(AppDimensions.ButtonCornerRadius)
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Configurações",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Abrir Configurações do Android", color = Color.White)
+                    }
+                }
+            }
         }
+        
+        // Seção de Apoio
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF13151A)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "Apoie o Desenvolvimento",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                
+                Text(
+                    "Utilizamos ferramentas de IA pagas para acelerar o desenvolvimento e entregar novas funcionalidades mais rapidamente. Hoje bancamos tudo do próprio bolso, mas gostaríamos do apoio da comunidade para continuar evoluindo o app.",
+                    fontSize = 14.sp,
+                    color = Color(0xFFB0B8C4),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+                
+                // QR Code Image
+                Image(
+                    painter = painterResource(id = R.drawable.qr_code_pix),
+                    contentDescription = "QR Code PIX",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                )
+                
+                Text(
+                    "Chave PIX (aleatória):",
+                    fontSize = 14.sp,
+                    color = Color(0xFFB0B8C4),
+                    fontWeight = FontWeight.Normal
+                )
+                
+                Text(
+                    "3ee82e85-3608-471e-86e7-aafc33c409df",
+                    fontSize = 14.sp,
+                    color = Color(0xFF4A9EFF),
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+                
+                Text(
+                    "Qualquer contribuição é bem-vinda! 💙",
+                    fontSize = 14.sp,
+                    color = Color(0xFFB0B8C4)
+                )
+            }
+        }
+
     }
 
     if (showAdvancedDialog) {
