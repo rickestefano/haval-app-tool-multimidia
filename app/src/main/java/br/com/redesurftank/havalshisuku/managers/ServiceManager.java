@@ -729,7 +729,7 @@ public class ServiceManager {
                 }
                 boolean closeSunRoofOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.getKey(), false);
                 if (closeSunRoofOnPowerOff) {
-                    closeSunRoof();
+                    closeSunRoof(true);
                 }
             } else if ((key.equals(CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE.getValue()) && value.equals("0"))) {
                 boolean closeWindowOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.getKey(), false);
@@ -738,7 +738,7 @@ public class ServiceManager {
                 }
                 boolean closeSunRoofOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.getKey(), false);
                 if (closeSunRoofOnFoldMirror) {
-                    closeSunRoof();
+                    closeSunRoof(true);
                 }
             } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) {
                 float currentSpeed = Float.parseFloat(value);
@@ -755,7 +755,7 @@ public class ServiceManager {
                 if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.getKey(), 15f)) {
                     if (!closeSunroofDueToeSpeed) {
                         if (closeSunRoofOnSpeed) {
-                            closeSunRoof();
+                            closeSunRoof(false);
                         }
                         closeSunroofDueToeSpeed = true;
                     }
@@ -790,26 +790,28 @@ public class ServiceManager {
         }
     }
 
-    public void closeSunRoof() {
+    public void closeSunRoof(boolean checkCloseShade) {
         try {
             var sunRoofStatus = vehicle.getSkylightLevel(0);
             if (sunRoofStatus != 0) {
                 vehicle.setSkylightLevel(0);
             }
-            if (sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.getKey(), false)) {
-                backgroundHandler.postDelayed(() -> {
-                    try {
-                        var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
-                        if (sunRoofBlockStatus != 0) {
-                            vehicle.setShadeScreensLevel(0);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error closing shade screens", e);
-                    }
-                }, 5000);
+            if (checkCloseShade && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.getKey(), false)) {
+                backgroundHandler.postDelayed(this::closeSunRoofShade, 5000);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error closing sunroof", e);
+        }
+    }
+
+    public void closeSunRoofShade() {
+        try {
+            var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
+            if (sunRoofBlockStatus != 0) {
+                vehicle.setShadeScreensLevel(0);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error closing shade screens", e);
         }
     }
 
