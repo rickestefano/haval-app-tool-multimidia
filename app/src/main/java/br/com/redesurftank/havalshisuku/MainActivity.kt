@@ -555,6 +555,9 @@ fun TelasTab() {
                     if (!it) {
                         enableWarning = false
                         prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
+                        enableCustomIntegration = false
+                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
+                        ServiceManager.getInstance().ensureSystemApps()
                     }
                 }
             )
@@ -625,6 +628,10 @@ fun TelasTab() {
                 onCheckedChange = {
                     enableCustomIntegration = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
+                    ServiceManager.getInstance().ensureSystemApps()
+                    if (enableCustomIntegration) {
+                        ServiceManager.getInstance().startClusterHeartbeat()
+                    }
                 },
                 enabled = enableProjector
             )
