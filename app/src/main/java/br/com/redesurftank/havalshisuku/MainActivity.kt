@@ -686,12 +686,17 @@ fun TelasTab() {
                     if (!it) {
                         enableWarning = false
                         prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
-                    enableCustomIntegration = false
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
-                    ServiceManager.getInstance().ensureSystemApps()
+                        enableCustomIntegration = false
+                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
+                        
+                        try {
+                            ServiceManager.getInstance().ensureSystemApps()
+                        } catch (e: Exception) {
+                            android.util.Log.e("TelasTab", "Erro ao desabilitar projetor: ${e.message}", e)
+                        }
+                    }
                 }
-            }
-        ),
+            ),
         SettingItem(
             title = "Aviso de revisão",
             description = SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.description,
@@ -709,9 +714,17 @@ fun TelasTab() {
             onCheckedChange = {
                 enableCustomIntegration = it
                 prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
-                ServiceManager.getInstance().ensureSystemApps()
-                if (enableCustomIntegration) {
-                    ServiceManager.getInstance().startClusterHeartbeat()
+                
+                try {
+                    ServiceManager.getInstance().ensureSystemApps()
+                    if (enableCustomIntegration) {
+                        ServiceManager.getInstance().startClusterHeartbeat()
+                    }
+                } catch (e: Exception) {
+                    // Log do erro e desabilitar a opção se falhar
+                    android.util.Log.e("TelasTab", "Erro ao configurar integração de mídia: ${e.message}", e)
+                    enableCustomIntegration = false
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
                 }
             },
             enabled = enableProjector
