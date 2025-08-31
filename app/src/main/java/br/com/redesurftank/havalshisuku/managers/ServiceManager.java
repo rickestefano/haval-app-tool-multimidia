@@ -173,6 +173,7 @@ public class ServiceManager {
     private ServiceConnection clusterServiceConnection;
     private IInputService inputService;
     private ServiceConnection inputServiceConnection;
+    private boolean isClusterHeartbeatRunning = false;
     private int clusterHeartBeatCount = 0;
     private int clusterCardView = 0;
     private int steeringWheelAcControlTypeIndex = 0;
@@ -299,6 +300,7 @@ public class ServiceManager {
                             if (intValue == 2) {
                                 Log.w(TAG, "Cluster heartbeat reset requested");
                                 sendHeartBeatToCluster();
+                                startClusterHeartbeat();
                             }
                         }
                     } else if (msgId == 135) {
@@ -328,15 +330,7 @@ public class ServiceManager {
                         Log.e(TAG, "Error registering cluster callback", e);
                     }
                     if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
-                        sendAndroidReadyToCluster();
-                        backgroundHandler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                sendHeartBeatToCluster();
-                                backgroundHandler.postDelayed(this, 1000);
-
-                            }
-                        }, 1000);
+                        startClusterHeartbeat();
                     }
                     Log.w(TAG, "ClusterService connected successfully");
                 }
@@ -424,7 +418,7 @@ public class ServiceManager {
                                 }
                                 break;
                                 case 1039: {
-                                    if(clusterCardView == 1){
+                                    if (clusterCardView == 1) {
                                         var currentAcAutoMode = getUpdatedData(CarConstants.CAR_HVAC_AUTO_ENABLE.getValue());
                                         if (currentAcAutoMode != null) {
                                             boolean acAutoMode = currentAcAutoMode.equals("1");
@@ -502,6 +496,7 @@ public class ServiceManager {
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOKS.getKey(), false)) {
                 pendingTasks.add(this::initializeFrida);
             }
+            ensureSystemApps();
 
             servicesInitialized = true;
             synchronized (pendingTasks) {
@@ -542,6 +537,25 @@ public class ServiceManager {
         } catch (Exception e) {
             Log.e(TAG, "Error setting cluster service message", e);
         }
+    }
+
+    public synchronized void startClusterHeartbeat() {
+        if (isClusterHeartbeatRunning)
+            return;
+        isClusterHeartbeatRunning = true;
+        sendAndroidReadyToCluster();
+        backgroundHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+                    isClusterHeartbeatRunning = false;
+                    return;
+                }
+                sendHeartBeatToCluster();
+                backgroundHandler.postDelayed(this, 1000);
+
+            }
+        }, 1000);
     }
 
     private void sendHeartBeatToCluster() {
@@ -715,7 +729,7 @@ public class ServiceManager {
                 }
                 boolean closeSunRoofOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.getKey(), false);
                 if (closeSunRoofOnPowerOff) {
-                    closeSunRoof();
+                    closeSunRoof(true);
                 }
             } else if ((key.equals(CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE.getValue()) && value.equals("0"))) {
                 boolean closeWindowOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.getKey(), false);
@@ -724,7 +738,7 @@ public class ServiceManager {
                 }
                 boolean closeSunRoofOnFoldMirror = sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.getKey(), false);
                 if (closeSunRoofOnFoldMirror) {
-                    closeSunRoof();
+                    closeSunRoof(true);
                 }
             } else if (key.equals(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) {
                 float currentSpeed = Float.parseFloat(value);
@@ -741,7 +755,7 @@ public class ServiceManager {
                 if (currentSpeed > sharedPreferences.getFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.getKey(), 15f)) {
                     if (!closeSunroofDueToeSpeed) {
                         if (closeSunRoofOnSpeed) {
-                            closeSunRoof();
+                            closeSunRoof(false);
                         }
                         closeSunroofDueToeSpeed = true;
                     }
@@ -776,26 +790,28 @@ public class ServiceManager {
         }
     }
 
-    public void closeSunRoof() {
+    public void closeSunRoof(boolean checkCloseShade) {
         try {
             var sunRoofStatus = vehicle.getSkylightLevel(0);
             if (sunRoofStatus != 0) {
                 vehicle.setSkylightLevel(0);
             }
-            if (sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.getKey(), false)) {
-                backgroundHandler.postDelayed(() -> {
-                    try {
-                        var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
-                        if (sunRoofBlockStatus != 0) {
-                            vehicle.setShadeScreensLevel(0);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error closing shade screens", e);
-                    }
-                }, 5000);
+            if (checkCloseShade && sharedPreferences.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.getKey(), false)) {
+                backgroundHandler.postDelayed(this::closeSunRoofShade, 5000);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error closing sunroof", e);
+        }
+    }
+
+    public void closeSunRoofShade() {
+        try {
+            var sunRoofBlockStatus = vehicle.getShadeScreensLevel(0);
+            if (sunRoofBlockStatus != 0) {
+                vehicle.setShadeScreensLevel(0);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error closing shade screens", e);
         }
     }
 
@@ -1021,6 +1037,31 @@ public class ServiceManager {
         return true;
     }
 
+    public void ensureSystemApps() {
+        if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.getKey(), false) && sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.getKey(), false)) {
+            disableSystemApp("com.beantechs.multidisplay");
+        } else {
+            enableSystemApp("com.beantechs.multidisplay");
+        }
+    }
+
+    public void disableSystemApp(String packageName) {
+        try {
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "uninstall", "--user", "0", packageName});
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"pkill", "-9", "-f", packageName});
+        } catch (Exception e) {
+            Log.e(TAG, "Error disabling system app: " + packageName, e);
+        }
+    }
+
+    public void enableSystemApp(String packageName) {
+        try {
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"pm", "install-existing", packageName});
+        } catch (Exception e) {
+            Log.e(TAG, "Error enabling system app: " + packageName, e);
+        }
+    }
+
     public boolean isServicesInitialized() {
         return servicesInitialized;
     }
@@ -1041,6 +1082,15 @@ public class ServiceManager {
 
     public long getTimeStartInitialization() {
         return timeStartInitialization;
+    }
+
+    public boolean isMainScreenOn() {
+        try {
+            var engineState = getData(CarConstants.CAR_BASIC_ENGINE_STATE.getValue());
+            return engineState != null && !engineState.equals("-1") && !engineState.equals("15");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public CarInfo getCarInfo() {

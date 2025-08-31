@@ -1,8 +1,8 @@
 package br.com.redesurftank.havalshisuku.projectors
 
 import android.annotation.SuppressLint
-import android.app.Presentation
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Outline
 import android.os.Bundle
@@ -15,25 +15,47 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isVisible
+import br.com.redesurftank.App
 import br.com.redesurftank.havalshisuku.R
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.ServiceManagerEventType
+import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import br.com.redesurftank.havalshisuku.models.SteeringWheelAcControlType
+import kotlin.collections.contains
 
-class InstrumentProjector2(outerContext: Context, display: Display) : Presentation(outerContext, display) {
+class InstrumentProjector2(outerContext: Context, display: Display) : BaseProjector(outerContext, display) {
+    private val preferences: SharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private var webViewAc: WebView? = null
     private val webViewsLoaded = mutableMapOf<WebView, Boolean>()
     private val pendingJsQueues = mutableMapOf<WebView, MutableList<String>>()
+    private lateinit var root: FrameLayout;
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in listOf(
+                SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key,
+                SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key
+            )
+        ) {
+            ensureUi {
+                root.isVisible = shouldShowProjector() && ServiceManager.getInstance().isMainScreenOn
+            }
+        }
+    }
+
+    private fun shouldShowProjector(): Boolean {
+        return preferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, false) && preferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferences.registerOnSharedPreferenceChangeListener(prefsListener)
         WebView.setWebContentsDebuggingEnabled(true)
         window?.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         window?.addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
         window?.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
 
-        val root = FrameLayout(context)
+        root = FrameLayout(context)
         setContentView(root)
 
         val radius = 226
@@ -54,9 +76,10 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
         }
         root.addView(circularView)
         circularView.isVisible = false
+        setupAcControlView(circularView)
 
         ServiceManager.getInstance().addDataChangedListener { key, value ->
-            circularView.post {
+            ensureUi {
                 when (key) {
                     CarConstants.CAR_HVAC_FAN_SPEED.value -> {
                         evaluateJsIfReady(webViewAc, "control('fan', $value)")
@@ -84,7 +107,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
         }
 
         ServiceManager.getInstance().addServiceManagerEventListener { event, args ->
-            circularView.post {
+            ensureUi {
                 when (event) {
                     ServiceManagerEventType.CLUSTER_CARD_CHANGED -> {
                         val card = args[0] as Int
@@ -92,7 +115,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                         webViewAc?.isVisible = false;
                         when (card) {
                             1 -> {
-                                setupAcControlView(circularView)
+                                showAcControlView()
                             }
 
                             else -> {
@@ -120,17 +143,7 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
             }
         }
 
-        ServiceManager.getInstance().addDataChangedListener { key: String?, value: String? ->
-            circularView.post {
-                if (key == CarConstants.CAR_BASIC_ENGINE_STATE.value) {
-                    if (value == "-1" || value == "15") {
-                        circularView.isVisible = false;
-                    } else {
-                        circularView.isVisible = true;
-                    }
-                }
-            }
-        }
+        root.isVisible = shouldShowProjector() && ServiceManager.getInstance().isMainScreenOn
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -156,12 +169,15 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
                 loadDataWithBaseURL(null, readRawHtml(context), "text/html", "UTF-8", null)
             }
             circularView.addView(webViewAc)
-        } else {
-            webViewAc?.isVisible = true
-            webViewAc?.let {
-                if (webViewsLoaded[it] == true) {
-                    updateValuesWebViewAc()
-                }
+            webViewAc?.isVisible = false;
+        }
+    }
+
+    private fun showAcControlView() {
+        webViewAc?.isVisible = true
+        webViewAc?.let {
+            if (webViewsLoaded[it] == true) {
+                updateValuesWebViewAc()
             }
         }
     }
@@ -193,5 +209,17 @@ class InstrumentProjector2(outerContext: Context, display: Display) : Presentati
 
     fun readRawHtml(context: Context): String {
         return context.resources.openRawResource(R.raw.app).bufferedReader().use { it.readText() }
+    }
+
+    override fun carMainScreenOff() {
+        ensureUi {
+            root.isVisible = false;
+        }
+    }
+
+    override fun carMainScreenOn() {
+        ensureUi {
+            root.isVisible = true;
+        }
     }
 }

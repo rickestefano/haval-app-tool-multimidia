@@ -1,14 +1,10 @@
 package br.com.redesurftank.havalshisuku.projectors
 
 import android.animation.ObjectAnimator
-import android.app.Presentation
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import android.view.Display
 import android.view.Gravity
 import android.view.View
@@ -25,13 +21,12 @@ import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
 import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
 
-class InstrumentProjector(outerContext: Context, display: Display) : Presentation(outerContext, display), IDataChanged {
+class InstrumentProjector(outerContext: Context, display: Display) : BaseProjector(outerContext, display), IDataChanged {
     private val preferences: SharedPreferences = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     private val serviceManager: ServiceManager = ServiceManager.getInstance()
-    private val handler = Handler(Looper.getMainLooper())
 
     private var currentKm: Int by Delegates.observable(serviceManager.totalOdometer) { _, _, _ ->
-        ensureUi { updateMaintenanceViewInternal() }
+        ensureUi { updateView() }
     }
 
     private var maintenanceTextView: TextView? = null
@@ -49,18 +44,20 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
 
     private val timeUpdateRunnable = object : Runnable {
         override fun run() {
-            ensureUi { updateMaintenanceViewInternal() }
+            ensureUi { updateView() }
             handler.postDelayed(this, 60000)
         }
     }
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key in listOf(
+                SharedPreferencesKeys.ENABLE_INSTRUMENT_EV_BATTERY_PERCENTAGE.key,
                 SharedPreferencesKeys.INSTRUMENT_REVISION_KM.key,
                 SharedPreferencesKeys.INSTRUMENT_REVISION_NEXT_DATE.key,
                 SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key
-            )) {
-            ensureUi { updateMaintenanceViewInternal() }
+            )
+        ) {
+            ensureUi { updateView() }
         }
     }
 
@@ -75,32 +72,17 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
             RelativeLayout.LayoutParams.MATCH_PARENT
         )
 
-        ServiceManager.getInstance().addDataChangedListener { key: String?, value: String? ->
-            ensureUi {
-                if (key == CarConstants.CAR_BASIC_ENGINE_STATE.value) {
-                    if (value == "-1" || value == "15") {
-                        rootLayout.isVisible = false;
-                    } else {
-                        rootLayout.isVisible = true;
-                    }
-                }
-            }
-        }
-
         setContentView(rootLayout)
 
         serviceManager.addDataChangedListener(this)
         preferences.registerOnSharedPreferenceChangeListener(prefsListener)
         handler.post(timeUpdateRunnable)
 
-        ensureUi { updateMaintenanceViewInternal() }
+        ensureUi { updateView() }
+        rootLayout.isVisible = ServiceManager.getInstance().isMainScreenOn
     }
 
-    private fun ensureUi(block: () -> Unit) {
-        if (Looper.myLooper() == Looper.getMainLooper()) block() else handler.post(block)
-    }
-
-    private fun updateMaintenanceViewInternal() {
+    private fun updateView() {
         val enableWarning = preferences.getBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false)
         if (!enableWarning) {
             maintenanceTextView?.let {
@@ -170,5 +152,17 @@ class InstrumentProjector(outerContext: Context, display: Display) : Presentatio
         preferences.unregisterOnSharedPreferenceChangeListener(prefsListener)
         serviceManager.removeDataChangedListener(this)
         super.cancel()
+    }
+
+    override fun carMainScreenOff() {
+        ensureUi {
+            rootLayout.isVisible = false
+        }
+    }
+
+    override fun carMainScreenOn() {
+        ensureUi {
+            rootLayout.isVisible = true
+        }
     }
 }
