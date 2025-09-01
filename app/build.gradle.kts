@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
+    implementation(libs.coil.compose)
+    implementation(libs.material.icons.extended)
     annotationProcessor(libs.annotation.processor)
     compileOnly(libs.annotation)
     debugImplementation(libs.ui.tooling)
