@@ -21,7 +21,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,54 +32,43 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DeveloperMode
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -95,18 +83,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -114,38 +97,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
-import coil.request.CachePolicy
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SmartDisplay
-import androidx.compose.material.icons.filled.DeveloperMode
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import br.com.redesurftank.App
-import br.com.redesurftank.havalshisuku.R
 import br.com.redesurftank.havalshisuku.listeners.IDataChanged
 import br.com.redesurftank.havalshisuku.managers.AutoBrightnessManager
 import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.models.AppInfo
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.ui.components.AppColors
+import br.com.redesurftank.havalshisuku.ui.components.AppDimensions
+import br.com.redesurftank.havalshisuku.ui.components.SettingCard
+import br.com.redesurftank.havalshisuku.ui.components.SettingItem
+import br.com.redesurftank.havalshisuku.ui.components.StyledCard
+import br.com.redesurftank.havalshisuku.ui.components.TwoColumnSettingsLayout
 import br.com.redesurftank.havalshisuku.ui.theme.HavalShisukuTheme
-import br.com.redesurftank.havalshisuku.ui.components.*
 import br.com.redesurftank.havalshisuku.utils.FridaUtils
-import br.com.redesurftank.havalshisuku.utils.ShizukuUtils
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -164,6 +135,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.min
+import androidx.compose.foundation.lazy.grid.items as gridItems
 
 const val TAG = "HavalShisuku"
 
@@ -336,7 +308,7 @@ fun BasicSettingsTab() {
     var volume by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.STARTUP_VOLUME.key, 1)) }
     var closeWindowsOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, false)) }
     var closeSunroofOnSpeed by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.key, false)) }
-    var speedThreshold by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.SPEED_THRESHOLD.key, 15)) }
+    var speedThreshold by remember { mutableFloatStateOf(prefs.getFloat(SharedPreferencesKeys.SPEED_THRESHOLD.key, 15f)) }
     var closeSunroofSpeedThreshold by remember { mutableFloatStateOf(prefs.getFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.key, 15f)) }
     var enableAutoBrightness by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, false)) }
     var nightStartHour by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_START_HOUR.key, 20)) }
@@ -416,11 +388,11 @@ fun BasicSettingsTab() {
                     closeWindowsOnSpeed = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.key, it) }
                 },
-                sliderValue = speedThreshold,
+                sliderValue = speedThreshold.toInt(),
                 sliderRange = 10..120,
                 onSliderChange = { newSpeed ->
-                    speedThreshold = newSpeed
-                    prefs.edit { putInt(SharedPreferencesKeys.SPEED_THRESHOLD.key, newSpeed) }
+                    speedThreshold = newSpeed.toFloat()
+                    prefs.edit { putFloat(SharedPreferencesKeys.SPEED_THRESHOLD.key, newSpeed.toFloat()) }
                 },
                 sliderLabel = "Velocidade: $speedThreshold km/h"
         ),
@@ -584,7 +556,7 @@ fun FridaHooksTab() {
                 checked = enableFridaHookSystemServer,
                 onCheckedChange = { newValue ->
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_FRIDA_HOOK_SYSTEM_SERVER.key, newValue) }
-                    enableFridaHookSystemServer = newValue;
+                    enableFridaHookSystemServer = newValue
                     if (newValue)
                         FridaUtils.injectSystemServer()
                 }
@@ -643,7 +615,7 @@ fun FridaHooksTab() {
                 LazyColumn {
                     items(manuals) { script ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(script.getProcess())
+                            Text(script.process)
                             Spacer(Modifier.width(8.dp))
                             Button(onClick = { FridaUtils.injectScript(script, false) }) {
                                 Text("Injetar")
@@ -692,7 +664,7 @@ fun TelasTab() {
                         try {
                             ServiceManager.getInstance().ensureSystemApps()
                         } catch (e: Exception) {
-                            android.util.Log.e("TelasTab", "Erro ao desabilitar projetor: ${e.message}", e)
+                            Log.e("TelasTab", "Erro ao desabilitar projetor: ${e.message}", e)
                         }
                     }
                 }
@@ -722,7 +694,7 @@ fun TelasTab() {
                     }
                 } catch (e: Exception) {
                     // Log do erro e desabilitar a opção se falhar
-                    android.util.Log.e("TelasTab", "Erro ao configurar integração de mídia: ${e.message}", e)
+                    Log.e("TelasTab", "Erro ao configurar integração de mídia: ${e.message}", e)
                     enableCustomIntegration = false
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
                 }
