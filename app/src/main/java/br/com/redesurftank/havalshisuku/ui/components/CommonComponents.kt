@@ -28,7 +28,8 @@ data class SettingItem(
     val sliderValue: Int? = null,
     val sliderRange: IntRange? = null,
     val onSliderChange: ((Int) -> Unit)? = null,
-    val sliderLabel: String? = null
+    val sliderLabel: String? = null,
+    val customContent: (@Composable () -> Unit)? = null
 )
 
 // Cores do tema
@@ -73,7 +74,8 @@ fun SettingCard(
     sliderValue: Int? = null,
     sliderRange: IntRange? = null,
     onSliderChange: ((Int) -> Unit)? = null,
-    sliderLabel: String? = null
+    sliderLabel: String? = null,
+    customContent: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = modifier
@@ -193,6 +195,12 @@ fun SettingCard(
                     }
                 }
             }
+            
+            // Mostrar conteúdo customizado se estiver ativado
+            if (checked && customContent != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                customContent()
+            }
         }
     }
 }
@@ -242,7 +250,8 @@ fun TwoColumnSettingsLayout(
                                 sliderValue = setting.sliderValue,
                                 sliderRange = setting.sliderRange,
                                 onSliderChange = setting.onSliderChange,
-                                sliderLabel = setting.sliderLabel
+                                sliderLabel = setting.sliderLabel,
+                                customContent = setting.customContent
                             )
                         }
                     }
@@ -264,7 +273,8 @@ fun TwoColumnSettingsLayout(
                                 sliderValue = setting.sliderValue,
                                 sliderRange = setting.sliderRange,
                                 onSliderChange = setting.onSliderChange,
-                                sliderLabel = setting.sliderLabel
+                                sliderLabel = setting.sliderLabel,
+                                customContent = setting.customContent
                             )
                         }
                     }
@@ -296,7 +306,8 @@ fun TwoColumnSettingsLayout(
                             sliderValue = setting.sliderValue,
                             sliderRange = setting.sliderRange,
                             onSliderChange = setting.onSliderChange,
-                            sliderLabel = setting.sliderLabel
+                            sliderLabel = setting.sliderLabel,
+                            customContent = setting.customContent
                         )
                     }
                 }
@@ -318,7 +329,8 @@ fun TwoColumnSettingsLayout(
                             sliderValue = setting.sliderValue,
                             sliderRange = setting.sliderRange,
                             onSliderChange = setting.onSliderChange,
-                            sliderLabel = setting.sliderLabel
+                            sliderLabel = setting.sliderLabel,
+                            customContent = setting.customContent
                         )
                     }
                 }
