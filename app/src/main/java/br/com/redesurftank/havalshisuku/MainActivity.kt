@@ -158,7 +158,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(modifier: Modifier = Modifier) {
     val prefs = App.getDeviceProtectedContext().getSharedPreferences("haval_prefs", Context.MODE_PRIVATE)
     val advancedUse = prefs.getBoolean(SharedPreferencesKeys.ADVANCE_USE.key, false)
-    
+
     val menuItems = buildList {
         add(DrawerMenuItem("Configurações", Icons.Default.Settings))
         add(DrawerMenuItem("Telas", Icons.Default.SmartDisplay))
@@ -169,9 +169,9 @@ fun MainScreen(modifier: Modifier = Modifier) {
             add(DrawerMenuItem("Frida Hooks", Icons.Default.Build))
         }
     }
-    
+
     var selectedItem by remember { mutableStateOf(0) }
-    
+
     Row(
         modifier = modifier
             .fillMaxSize()
@@ -198,7 +198,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                         ),
                         label = "backgroundWidth"
                     )
-                    
+
                     val borderAlpha by animateFloatAsState(
                         targetValue = if (selectedItem == index) 1f else 0f,
                         animationSpec = tween(
@@ -207,7 +207,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                         ),
                         label = "borderAlpha"
                     )
-                    
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -260,23 +260,23 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        
+
         // Main Content
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .background(AppColors.Background)
-        ) {    
+        ) {
             // Content Area
             ContentArea {
                 when (selectedItem) {
-            0 -> BasicSettingsTab()
-            1 -> TelasTab()
-            2 -> CurrentValuesTab()
-            3 -> InstallAppsTab()
-            4 -> InformacoesTab()
-            5 -> FridaHooksTab()
+                    0 -> BasicSettingsTab()
+                    1 -> TelasTab()
+                    2 -> CurrentValuesTab()
+                    3 -> InstallAppsTab()
+                    4 -> InformacoesTab()
+                    5 -> FridaHooksTab()
                 }
             }
         }
@@ -317,72 +317,73 @@ fun BasicSettingsTab() {
     var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
-    
+
     val settingsList = mutableListOf<SettingItem>()
-    
-        if (isAdvancedUse && !selfInstallationCheck) {
+
+    if (isAdvancedUse && !selfInstallationCheck) {
         settingsList.add(
             SettingItem(
                 title = "Bypass de Verificação",
                 description = SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.description,
-                    checked = bypassSelfInstallationCheck,
-                    onCheckedChange = {
-                        bypassSelfInstallationCheck = it
-                        prefs.edit { putBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.key, it) }
-                    }
-                )
+                checked = bypassSelfInstallationCheck,
+                onCheckedChange = {
+                    bypassSelfInstallationCheck = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.BYPASS_SELF_INSTALLATION_INTEGRITY_CHECK.key, it) }
+                }
+            )
         )
     }
-    
-    settingsList.addAll(listOf(
-        SettingItem(
-            title = "Fechar janela ao desligar o veículo",
-            description = "Fecha automaticamente as janelas quando o motor é desligado",
+
+    settingsList.addAll(
+        listOf(
+            SettingItem(
+                title = "Fechar janela ao desligar o veículo",
+                description = "Fecha automaticamente as janelas quando o motor é desligado",
                 checked = closeWindowOnPowerOff,
                 onCheckedChange = {
                     closeWindowOnPowerOff = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_POWER_OFF.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Fechar janela ao recolher retrovisores",
-            description = "Sincroniza fechamento das janelas com o recolhimento dos retrovisores",
+            ),
+            SettingItem(
+                title = "Fechar janela ao recolher retrovisores",
+                description = "Sincroniza fechamento das janelas com o recolhimento dos retrovisores",
                 checked = closeWindowOnFoldMirror,
                 onCheckedChange = {
                     closeWindowOnFoldMirror = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_WINDOW_ON_FOLD_MIRROR.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Fechar teto solar ao desligar",
-            description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.description,
+            ),
+            SettingItem(
+                title = "Fechar teto solar ao desligar",
+                description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.description,
                 checked = closeSunroofOnPowerOff,
                 onCheckedChange = {
                     closeSunroofOnPowerOff = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_POWER_OFF.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Fechar teto solar ao recolher retrovisores",
-            description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.description,
+            ),
+            SettingItem(
+                title = "Fechar teto solar ao recolher retrovisores",
+                description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.description,
                 checked = closeSunroofOnFoldMirror,
                 onCheckedChange = {
                     closeSunroofOnFoldMirror = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_ON_FOLD_MIRROR.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Fechar cortina do teto solar",
-            description = SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.description,
+            ),
+            SettingItem(
+                title = "Fechar cortina do teto solar",
+                description = SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.description,
                 checked = closeSunroofSunShadeOnCloseSunroof,
                 onCheckedChange = {
                     closeSunroofSunShadeOnCloseSunroof = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.CLOSE_SUNROOF_SUN_SHADE_ON_CLOSE_SUNROOF.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Fechar janelas com velocidade",
-            description = SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.description,
+            ),
+            SettingItem(
+                title = "Fechar janelas com velocidade",
+                description = SharedPreferencesKeys.CLOSE_WINDOWS_ON_SPEED.description,
                 checked = closeWindowsOnSpeed,
                 onCheckedChange = {
                     closeWindowsOnSpeed = it
@@ -395,10 +396,10 @@ fun BasicSettingsTab() {
                     prefs.edit { putFloat(SharedPreferencesKeys.SPEED_THRESHOLD.key, newSpeed.toFloat()) }
                 },
                 sliderLabel = "Velocidade: $speedThreshold km/h"
-        ),
-        SettingItem(
-            title = "Fechar teto solar com velocidade",
-            description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.description,
+            ),
+            SettingItem(
+                title = "Fechar teto solar com velocidade",
+                description = SharedPreferencesKeys.CLOSE_SUNROOF_ON_SPEED.description,
                 checked = closeSunroofOnSpeed,
                 onCheckedChange = {
                     closeSunroofOnSpeed = it
@@ -411,48 +412,48 @@ fun BasicSettingsTab() {
                     prefs.edit { putFloat(SharedPreferencesKeys.SUNROOF_SPEED_THRESHOLD.key, newSpeed.toFloat()) }
                 },
                 sliderLabel = "Velocidade: ${closeSunroofSpeedThreshold.toInt()} km/h"
-        ),
-        SettingItem(
-            title = "Manter desativado monitoramento de distrações",
-            description = "Desabilita alertas de distração durante a condução",
+            ),
+            SettingItem(
+                title = "Manter desativado monitoramento de distrações",
+                description = "Desabilita alertas de distração durante a condução",
                 checked = disableMonitoring,
                 onCheckedChange = {
                     disableMonitoring = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_MONITORING.key, it) }
                     ServiceManager.getInstance().setMonitoringEnabled(!it)
                 }
-        ),
-        SettingItem(
-            title = "Desativar AVAS",
-            description = "Sistema de alerta de veículo silencioso",
+            ),
+            SettingItem(
+                title = "Desativar AVAS",
+                description = "Sistema de alerta de veículo silencioso",
                 checked = disableAvas,
                 onCheckedChange = {
                     disableAvas = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVAS.key, it) }
                     ServiceManager.getInstance().setAvasEnabled(!it)
                 }
-        ),
-        SettingItem(
-            title = "Desativar câmera AVM quando parado",
-            description = "Desliga câmera de visão 360° quando o veículo está parado",
+            ),
+            SettingItem(
+                title = "Desativar câmera AVM quando parado",
+                description = "Desliga câmera de visão 360° quando o veículo está parado",
                 checked = disableAvmCarStopped,
                 onCheckedChange = {
                     disableAvmCarStopped = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Controle do A/C pelo volante",
-            description = SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.description,
+            ),
+            SettingItem(
+                title = "Controle do A/C pelo volante",
+                description = SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.description,
                 checked = enableControlAcViaSteeringWheel,
                 onCheckedChange = {
                     enableControlAcViaSteeringWheel = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, it) }
                 }
-        ),
-        SettingItem(
-            title = "Ativar modo noturno automático",
-            description = "Ajusta o brilho da tela automaticamente",
+            ),
+            SettingItem(
+                title = "Ativar modo noturno automático",
+                description = "Ajusta o brilho da tela automaticamente",
                 checked = enableAutoBrightness,
                 onCheckedChange = {
                     enableAutoBrightness = it
@@ -465,7 +466,7 @@ fun BasicSettingsTab() {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             HorizontalDivider(color = Color(0xFF3A3F47), thickness = 1.dp)
-                            
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -499,9 +500,9 @@ fun BasicSettingsTab() {
                                         )
                                     }
                                 }
-                                
+
                                 Spacer(modifier = Modifier.width(12.dp))
-                                
+
                                 // Fim da noite
                                 Box(
                                     modifier = Modifier
@@ -535,10 +536,10 @@ fun BasicSettingsTab() {
                         }
                     }
                 } else null
-        ),
-        SettingItem(
-            title = "Definir volume inicial",
-            description = SharedPreferencesKeys.SET_STARTUP_VOLUME.description,
+            ),
+            SettingItem(
+                title = "Definir volume inicial",
+                description = SharedPreferencesKeys.SET_STARTUP_VOLUME.description,
                 checked = setStartupVolume,
                 onCheckedChange = {
                     setStartupVolume = it
@@ -551,11 +552,12 @@ fun BasicSettingsTab() {
                     prefs.edit { putInt(SharedPreferencesKeys.STARTUP_VOLUME.key, newVolume) }
                 },
                 sliderLabel = "Volume: $volume"
+            )
         )
-    ))
-    
+    )
+
     TwoColumnSettingsLayout(settingsList = settingsList)
-    
+
     if (showStartPicker) {
         LaunchedEffect(Unit) {
             val dialog = TimePickerDialog(
@@ -728,33 +730,33 @@ fun TelasTab() {
         SettingItem(
             title = "Projetor do painel",
             description = SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.description,
-                checked = enableProjector,
-                onCheckedChange = {
-                    enableProjector = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
-                    if (!it) {
-                        enableWarning = false
-                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
-                        enableCustomIntegration = false
-                        prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
-                        
-                        try {
-                            ServiceManager.getInstance().ensureSystemApps()
-                        } catch (e: Exception) {
-                            Log.e("TelasTab", "Erro ao desabilitar projetor: ${e.message}", e)
-                        }
+            checked = enableProjector,
+            onCheckedChange = {
+                enableProjector = it
+                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_PROJECTOR.key, it) }
+                if (!it) {
+                    enableWarning = false
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, false) }
+                    enableCustomIntegration = false
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, false) }
+
+                    try {
+                        ServiceManager.getInstance().ensureSystemApps()
+                    } catch (e: Exception) {
+                        Log.e("TelasTab", "Erro ao desabilitar projetor: ${e.message}", e)
                     }
                 }
-            ),
+            }
+        ),
         SettingItem(
             title = "Aviso de revisão",
             description = SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.description,
-                checked = enableWarning,
-                onCheckedChange = {
-                    enableWarning = it
-                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
-                },
-                enabled = enableProjector
+            checked = enableWarning,
+            onCheckedChange = {
+                enableWarning = it
+                prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_REVISION_WARNING.key, it) }
+            },
+            enabled = enableProjector
         ),
         SettingItem(
             title = "Integração de mídia customizada",
@@ -763,7 +765,7 @@ fun TelasTab() {
             onCheckedChange = {
                 enableCustomIntegration = it
                 prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_INSTRUMENT_CUSTOM_MEDIA_INTEGRATION.key, it) }
-                
+
                 try {
                     ServiceManager.getInstance().ensureSystemApps()
                     if (enableCustomIntegration) {
@@ -837,7 +839,7 @@ fun TelasTab() {
                                 }
                             }
                         }
-                        
+
                         Column {
                             Text(
                                 "Próxima data: $formattedNextDate",
@@ -938,8 +940,9 @@ fun CurrentValuesTab() {
         }
     }
     Column(
-        modifier = Modifier.fillMaxSize()
-        .padding(12.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
     ) {
         if (advancedUse) {
             Button(
@@ -982,10 +985,10 @@ fun CurrentValuesTab() {
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .then(
                             if (advancedUse) Modifier.clickable {
-                        selectedKey = key
-                        newValue = value
-                        showUpdateDialog = true
-                    } else Modifier
+                                selectedKey = key
+                                newValue = value
+                                showUpdateDialog = true
+                            } else Modifier
                         ),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFF13151A)
@@ -1294,23 +1297,25 @@ fun InstallAppsTab() {
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
-        modifier = Modifier.fillMaxSize().padding(12.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // URL Input Section
         item(span = { GridItemSpan(4) }) {
-    Column(
+            Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-        TextField(
-            value = urlInput,
-            onValueChange = { urlInput = it },
-            label = { Text("URL do APK") },
+                    TextField(
+                        value = urlInput,
+                        onValueChange = { urlInput = it },
+                        label = { Text("URL do APK") },
                         modifier = Modifier.weight(1f),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color(0xFF2A2F37),
@@ -1336,19 +1341,19 @@ fun InstallAppsTab() {
                         }
                     }
                 }
-                
-        if (downloadingUrl) {
+
+                if (downloadingUrl) {
                     LinearProgressIndicator(
                         progress = { urlProgress },
                         modifier = Modifier.fillMaxWidth(),
                         color = Color(0xFF4A9EFF)
                     )
                 }
-                
+
                 if (installResult.isNotEmpty()) {
                     Text(installResult, color = Color.White, fontSize = 14.sp)
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Aplicativos disponíveis:",
@@ -1358,7 +1363,7 @@ fun InstallAppsTab() {
                 )
             }
         }
-        
+
         // Loading indicator
         if (isLoading) {
             item(span = { GridItemSpan(4) }) {
@@ -1374,29 +1379,30 @@ fun InstallAppsTab() {
                 }
             }
         } else {
-                        // Apps Grid - Ordenados por prioridade: Atualizar > Instalar > Instalados
+            // Apps Grid - Ordenados por prioridade: Atualizar > Instalar > Instalados
             // Dentro de cada grupo, ordena alfabeticamente
-            val sortedApps = apps.sortedWith(compareBy(
-                { app ->
-                    val installedVersion = getInstalledVersion(app.packageName)
-                    val isInstalled = installedVersion != null
-                    val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
-                    
-                    when {
-                        needsUpdate -> 0  // Prioridade máxima: precisa atualizar
-                        !isInstalled -> 1 // Segunda prioridade: disponível para instalar
-                        else -> 2         // Última prioridade: já instalado e atualizado
-                    }
-                },
-                { app -> app.name.lowercase() } // Ordenação alfabética dentro de cada grupo
-            ))
-            
+            val sortedApps = apps.sortedWith(
+                compareBy(
+                    { app ->
+                        val installedVersion = getInstalledVersion(app.packageName)
+                        val isInstalled = installedVersion != null
+                        val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
+
+                        when {
+                            needsUpdate -> 0  // Prioridade máxima: precisa atualizar
+                            !isInstalled -> 1 // Segunda prioridade: disponível para instalar
+                            else -> 2         // Última prioridade: já instalado e atualizado
+                        }
+                    },
+                    { app -> app.name.lowercase() } // Ordenação alfabética dentro de cada grupo
+                ))
+
             gridItems(sortedApps) { app ->
-                    val installedVersion = getInstalledVersion(app.packageName)
-                    val isInstalled = installedVersion != null
-                    val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
-                    val progress = downloadProgress[app.packageName] ?: 0f
-                    
+                val installedVersion = getInstalledVersion(app.packageName)
+                val isInstalled = installedVersion != null
+                val needsUpdate = isInstalled && compareVersions(installedVersion, app.version) < 0
+                val progress = downloadProgress[app.packageName] ?: 0f
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1428,7 +1434,7 @@ fun InstallAppsTab() {
                                 modifier = Modifier.size(80.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                                                Surface(
+                                Surface(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(8.dp),
@@ -1451,7 +1457,7 @@ fun InstallAppsTab() {
                                                 Log.e(TAG, "Error loading icon for ${app.name}: ${it.result.throwable}")
                                             }
                                         )
-                            } else {
+                                    } else {
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier.fillMaxSize()
@@ -1466,9 +1472,9 @@ fun InstallAppsTab() {
                                     }
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.height(8.dp))
-                            
+
                             // App Name
                             Text(
                                 app.name,
@@ -1480,7 +1486,7 @@ fun InstallAppsTab() {
                                 textAlign = TextAlign.Center,
                                 lineHeight = 18.sp
                             )
-                            
+
                             // Version info
                             Text(
                                 "v${app.version}",
@@ -1488,7 +1494,7 @@ fun InstallAppsTab() {
                                 color = Color(0xFFB0B8C4),
                                 lineHeight = 14.sp
                             )
-                            
+
                             if (isInstalled) {
                                 Text(
                                     "Inst: v${installedVersion}",
@@ -1500,7 +1506,7 @@ fun InstallAppsTab() {
                                 )
                             }
                         }
-                        
+
                         // Action Button Section
                         Column(
                             modifier = Modifier.fillMaxWidth()
@@ -1535,7 +1541,7 @@ fun InstallAppsTab() {
                                             isPrimary = true
                                         )
                                     }
-                                    
+
                                     // Botão de desinstalar
                                     if (isInstalled) {
                                         AppActionButton(
@@ -1761,10 +1767,10 @@ fun InformacoesTab() {
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                
+
                 HorizontalDivider(color = Color(0xFF1D2430))
-                
-        if (!bypassSelfInstallationCheck) {
+
+                if (!bypassSelfInstallationCheck) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -1776,7 +1782,7 @@ fun InformacoesTab() {
                         )
                     }
                 }
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -1788,8 +1794,8 @@ fun InformacoesTab() {
                         fontWeight = FontWeight.Medium
                     )
                 }
-                
-        if (isActive) {
+
+                if (isActive) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -1812,9 +1818,9 @@ fun InformacoesTab() {
                         Text(formattedTime3, color = Color.White, fontSize = 14.sp)
                     }
                 }
-                
+
                 HorizontalDivider(color = Color(0xFF1D2430))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1822,41 +1828,41 @@ fun InformacoesTab() {
                 ) {
                     Column {
                         Text("Versão", color = Color(0xFFB0B8C4), fontSize = 14.sp)
-        Text(
+                        Text(
                             version,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.clickable {
-                    clickCount++
-                    if (clickCount >= 5) {
-                        showAdvancedDialog = true
-                        clickCount = 0
-                    }
+                                clickCount++
+                                if (clickCount >= 5) {
+                                    showAdvancedDialog = true
+                                    clickCount = 0
+                                }
                             }
                         )
                     }
-                    
+
                     Button(
                         onClick = {
-                    scope.launch {
-                        val (latest, dlUrl) = getLatestReleaseInfo()
-                        if (latest != null && dlUrl != null) {
-                            val currentClean = version.removePrefix("v")
-                            val latestClean = latest.removePrefix("v")
-                            if (compareVersions(latestClean, currentClean) > 0) {
-                                latestVersion = latest
-                                downloadUrl = dlUrl
-                                updateAvailable = true
-                            } else {
+                            scope.launch {
+                                val (latest, dlUrl) = getLatestReleaseInfo()
+                                if (latest != null && dlUrl != null) {
+                                    val currentClean = version.removePrefix("v")
+                                    val latestClean = latest.removePrefix("v")
+                                    if (compareVersions(latestClean, currentClean) > 0) {
+                                        latestVersion = latest
+                                        downloadUrl = dlUrl
+                                        updateAvailable = true
+                                    } else {
                                         updateMessage = "Você está na versão mais recente"
-                                showUpdateDialog = true
-                            }
-                        } else {
+                                        showUpdateDialog = true
+                                    }
+                                } else {
                                     updateMessage = "Erro ao verificar atualizações"
-                            showUpdateDialog = true
-                        }
-                    }
+                                    showUpdateDialog = true
+                                }
+                            }
                         },
                         modifier = Modifier.height(48.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -1882,10 +1888,10 @@ fun InformacoesTab() {
                 ) {
                     Button(
                         onClick = {
-            val intent = Intent(Intent.ACTION_MAIN).apply {
-                component = ComponentName("com.android.settings", "com.android.settings.Settings")
-            }
-            context.startActivity(intent)
+                            val intent = Intent(Intent.ACTION_MAIN).apply {
+                                component = ComponentName("com.android.settings", "com.android.settings.Settings")
+                            }
+                            context.startActivity(intent)
                         },
                         modifier = Modifier
                             .height(48.dp),
