@@ -458,7 +458,83 @@ fun BasicSettingsTab() {
                     enableAutoBrightness = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AUTO_BRIGHTNESS.key, it) }
                     AutoBrightnessManager.getInstance().setEnabled(it)
-                }
+                },
+                customContent = if (enableAutoBrightness) {
+                    {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            HorizontalDivider(color = Color(0xFF3A3F47), thickness = 1.dp)
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                // Início da noite
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { showStartPicker = true }
+                                        .background(
+                                            Color(0xFF2A2F37),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "Início da noite",
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "${String.format("%02d", nightStartHour)}:${String.format("%02d", nightStartMinute)}",
+                                            color = Color(0xFF4A9EFF),
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.width(12.dp))
+                                
+                                // Fim da noite
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { showEndPicker = true }
+                                        .background(
+                                            Color(0xFF2A2F37),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "Fim da noite",
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "${String.format("%02d", nightEndHour)}:${String.format("%02d", nightEndMinute)}",
+                                            color = Color(0xFF4A9EFF),
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else null
         ),
         SettingItem(
             title = "Definir volume inicial",
@@ -479,6 +555,7 @@ fun BasicSettingsTab() {
     ))
     
     TwoColumnSettingsLayout(settingsList = settingsList)
+    
     if (showStartPicker) {
         LaunchedEffect(Unit) {
             val dialog = TimePickerDialog(
