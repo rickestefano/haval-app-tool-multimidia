@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -116,7 +117,7 @@ fun SplashScreen(onComplete: () -> Unit) {
             
             // HAVAL Text
             Text(
-                "HAVAL",
+                stringResource(R.string.app_splash_title),
                 color = Color.White,
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold,
@@ -125,7 +126,7 @@ fun SplashScreen(onComplete: () -> Unit) {
             
             // IMPULSE Text
             Text(
-                "IMPULSE",
+                stringResource(R.string.app_splash_subtitle),
                 color = Color(0xFF4A9EFF),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Light,
@@ -157,7 +158,7 @@ fun SplashScreen(onComplete: () -> Unit) {
             
             // Loading Text
             Text(
-                "Inicializando sistema...",
+                stringResource(R.string.app_splash_init),
                 color = Color(0xFFB0B8C4),
                 fontSize = 16.sp
             )

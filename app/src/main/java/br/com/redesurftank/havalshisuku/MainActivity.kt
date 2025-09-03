@@ -315,6 +315,8 @@ fun BasicSettingsTab() {
     var nightStartMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_START_MINUTE.key, 0)) }
     var nightEndHour by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_HOUR.key, 6)) }
     var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
+    var disableBluetoothOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.key, false)) }
+    var disableHotspotOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.key, false)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
@@ -449,6 +451,24 @@ fun BasicSettingsTab() {
                 onCheckedChange = {
                     enableControlAcViaSteeringWheel = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.key, it) }
+                }
+            ),
+            SettingItem(
+                title = "Desligar bluetooth ao desligar",
+                description = SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.description,
+                checked = disableBluetoothOnPowerOff,
+                onCheckedChange = {
+                    disableBluetoothOnPowerOff = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.key, it) }
+                }
+            ),
+            SettingItem(
+                title = "Desligar ponto de acesso ao desligar",
+                description = SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.description,
+                checked = disableHotspotOnPowerOff,
+                onCheckedChange = {
+                    disableHotspotOnPowerOff = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.key, it) }
                 }
             ),
             SettingItem(

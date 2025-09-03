@@ -34,5 +34,8 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     SELF_INSTALLATION_INTEGRITY_CHECK("selfInstallationIntegrityCheck", "Verificação de integridade da instalação"),
     ADVANCE_USE("advanceUse", "Uso avançado"),
     CURRENT_USER("currentUser", "Usuário atual"),
-    LAST_CLUSTER_AC_CONFIG("lastClusterAcConfig", "Última configuração do ar-condicionado do cluster")
+    LAST_CLUSTER_AC_CONFIG("lastClusterAcConfig", "Última configuração do ar-condicionado do cluster"),
+    DISABLE_BLUETOOTH_ON_POWER_OFF("disableBluetoothOnPowerOff", "Desativar Bluetooth ao desligar o veículo"),
+    DISABLE_HOTSPOT_ON_POWER_OFF("disableHotspotOnPowerOff", "Desativar ponto de acesso ao desligar o veículo"),
+    BLUETOOTH_STATE_ON_POWER_OFF("bluetoothStateOnPowerOff", "Estado do Bluetooth ao desligar o veículo"),
 }

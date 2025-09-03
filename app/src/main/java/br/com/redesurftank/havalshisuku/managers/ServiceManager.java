@@ -1,15 +1,22 @@
 package br.com.redesurftank.havalshisuku.managers;
 
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.IConnectivityManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -173,6 +180,7 @@ public class ServiceManager {
     private ServiceConnection clusterServiceConnection;
     private IInputService inputService;
     private ServiceConnection inputServiceConnection;
+    private IConnectivityManager connectivityManager;
     private boolean isClusterHeartbeatRunning = false;
     private int clusterHeartBeatCount = 0;
     private int clusterCardView = 0;
@@ -467,10 +475,54 @@ public class ServiceManager {
             ShizukuUtils.runCommandAndGetOutput(new String[]{
                     "settings", "put", "secure", "accessibility_enabled", "1"
             });
+            //enable write secure settings
+            ShizukuUtils.runCommandAndGetOutput(new String[]{
+                    "pm", "grant", context.getPackageName(), "android.permission.WRITE_SECURE_SETTINGS"
+            });
             controlService.registerDataChangedListener(context.getPackageName(), listener);
             Log.w(TAG, "Listener registered successfully");
             controlService.addListenerKey(App.getContext().getPackageName(), getCombinedKeys());
             Log.w(TAG, "Listener keys added successfully");
+            IBinder connectivityBinder = new ShizukuBinderWrapper(getSystemService(Context.CONNECTIVITY_SERVICE));
+            connectivityManager = IConnectivityManager.Stub.asInterface(connectivityBinder);
+            IntentFilter bluetoothFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+            bluetoothFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
+            context.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction() == null) return;
+                    String action = intent.getAction();
+                    if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED) || action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
+                        var state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                        if (state == BluetoothAdapter.STATE_ON) {
+                            var drivingReady = getUpdatedData(CarConstants.CAR_BASIC_DRIVING_READY_STATE.getValue());
+                            boolean disableBluetoothWhenPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.getKey(), false);
+                            if (drivingReady.equals("-1") && disableBluetoothWhenPowerOff) {
+                                disableBluetooth();
+                            }
+                        }
+                    }
+                }
+            }, bluetoothFilter);
+            IntentFilter wifiFilter = new IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED");
+            context.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction() == null) return;
+                    String action = intent.getAction();
+                    if (action.equals("android.net.wifi.WIFI_AP_STATE_CHANGED")) {
+                        int state = intent.getIntExtra("wifi_state", 0);
+                        if (state == 13) { // WIFI_AP_STATE_ENABLED
+                            Log.w(TAG, "Wi-Fi Hotspot turned on");
+                            var drivingReady = getUpdatedData(CarConstants.CAR_BASIC_DRIVING_READY_STATE.getValue());
+                            boolean disableHotspotWhenPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.getKey(), false);
+                            if (drivingReady.equals("-1") && disableHotspotWhenPowerOff) {
+                                disableWifiTether();
+                            }
+                        }
+                    }
+                }
+            }, wifiFilter);
             dispatchAllData();
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.SET_STARTUP_VOLUME.getKey(), false)) {
                 int startupVolume = sharedPreferences.getInt(SharedPreferencesKeys.STARTUP_VOLUME.getKey(), -1);
@@ -769,6 +821,25 @@ public class ServiceManager {
                 }
             } else if (key.equals(CarConstants.SYS_AVM_PREVIEW_STATUS.getValue()) && sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_AVM_CAR_STOPPED.getKey(), false) && value.equals("1") && Float.parseFloat(getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.getValue())) <= 0f && !getData(CarConstants.CAR_BASIC_GEAR_STATUS.getValue()).equals("4")) {
                 dvr.setAVM(0);
+            } else if (key.equals(CarConstants.CAR_BASIC_DRIVING_READY_STATE.getValue())) {
+                if (value.equals("-1")) {
+                    boolean disableBluetoothOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.getKey(), false);
+                    boolean currentBluetoothState = currentBluetoothState();
+                    sharedPreferences.edit().putBoolean(SharedPreferencesKeys.BLUETOOTH_STATE_ON_POWER_OFF.getKey(), currentBluetoothState).apply();
+                    if (currentBluetoothState && disableBluetoothOnPowerOff) {
+                        disableBluetooth();
+                    }
+                    boolean disableHotspotOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.getKey(), false);
+                    if (disableHotspotOnPowerOff) {
+                        disableWifiTether();
+                    }
+                } else {
+                    boolean disableBluetoothOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.getKey(), false);
+                    boolean bluetoothStateOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.BLUETOOTH_STATE_ON_POWER_OFF.getKey(), false);
+                    if (disableBluetoothOnPowerOff && bluetoothStateOnPowerOff && !currentBluetoothState()) {
+                        enableBluetooth();
+                    }
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);
@@ -844,6 +915,58 @@ public class ServiceManager {
             Log.w(TAG, "AVAS enabled: " + b);
         } catch (RemoteException e) {
             Log.e(TAG, "Error setting AVAS", e);
+        }
+    }
+
+    private boolean currentBluetoothState() {
+        try {
+            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            return bluetoothAdapter != null && bluetoothAdapter.isEnabled();
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking Bluetooth state", e);
+            return false;
+        }
+    }
+
+    public void disableBluetooth() {
+        try {
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"svc", "bluetooth", "disable"});
+        } catch (Exception e) {
+            Log.e(TAG, "Error disabling Bluetooth", e);
+        }
+    }
+
+    public void enableBluetooth() {
+        try {
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"svc", "bluetooth", "enable"});
+        } catch (Exception e) {
+            Log.e(TAG, "Error enabling Bluetooth", e);
+        }
+    }
+
+    public void disableWifiTether() {
+        try {
+            connectivityManager.stopTethering(0, "br.com.redesurftank.havalshisuku");
+        } catch (Exception e) {
+            Log.e(TAG, "Error disabling Wi-Fi", e);
+        }
+    }
+
+    public void enableWifiTether() {
+        try {
+            var receiver = new ResultReceiver(new Handler(Looper.getMainLooper())) {
+                @Override
+                protected void onReceiveResult(int resultCode, Bundle resultData) {
+                    if (resultCode == 0) {
+                        Log.w(TAG, "Wi-Fi tethering started successfully");
+                    } else {
+                        Log.e(TAG, "Failed to start Wi-Fi tethering with result code: " + resultCode);
+                    }
+                }
+            };
+            connectivityManager.startTethering(0, receiver, false, "br.com.redesurftank.havalshisuku");
+        } catch (Exception e) {
+            Log.e(TAG, "Error enabling Wi-Fi", e);
         }
     }
 
