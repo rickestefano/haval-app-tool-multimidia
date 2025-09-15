@@ -62,15 +62,17 @@ class AutoBrightnessManager private constructor() {
 
     fun adjustBrightnessForNight() {
         ServiceManager.getInstance().executeWithServicesRunning {
-            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, "1");
-            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, "1");
+            val brightness = prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_NIGHT.key, 1)
+            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, brightness.toString());
+            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, brightness.toString());
         };
     }
 
     fun adjustBrightnessForDay() {
         ServiceManager.getInstance().executeWithServicesRunning {
-            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, "10");
-            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, "10");
+            val brightness = prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_DAY.key, 10)
+            ServiceManager.getInstance().updateData(CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL.value, brightness.toString());
+            ServiceManager.getInstance().updateData(CarConstants.CAR_IPK_SETTING_BRIGHTNESS_CONFIG.value, brightness.toString());
         };
     }
 

@@ -18,6 +18,8 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     NIGHT_END_HOUR("nightEndHour", "Hora de fim da noite"),
     NIGHT_END_MINUTE("nightEndMinute", "Minuto de fim da noite"),
     ENABLE_AUTO_BRIGHTNESS("enableAutoBrightness", "Habilitar ajuste automático de brilho"),
+    AUTO_BRIGHTNESS_LEVEL_NIGHT("autoBrightnessLevelNight", "Nível de brilho automático à noite"),
+    AUTO_BRIGHTNESS_LEVEL_DAY("autoBrightnessLevelDay", "Nível de brilho automático durante o dia"),
     ENABLE_FRIDA_HOOKS("enableFridaHooks", "Habilitar hooks do Frida"),
     ENABLE_FRIDA_HOOK_SYSTEM_SERVER("enableFridaHookSystemServer", "Habilitar hooks do Frida no System Server"),
     ENABLE_INSTRUMENT_PROJECTOR("enableInstrumentProjector", "Habilitar dados no painel de instrumentos"),
@@ -38,4 +40,5 @@ enum class SharedPreferencesKeys(val key: String, val description: String) {
     DISABLE_BLUETOOTH_ON_POWER_OFF("disableBluetoothOnPowerOff", "Desativar Bluetooth ao desligar o veículo"),
     DISABLE_HOTSPOT_ON_POWER_OFF("disableHotspotOnPowerOff", "Desativar ponto de acesso ao desligar o veículo"),
     BLUETOOTH_STATE_ON_POWER_OFF("bluetoothStateOnPowerOff", "Estado do Bluetooth ao desligar o veículo"),
+    ENABLE_SEAT_VENTILATION_ON_AC_ON("enableSeatVentilationOnAcOn", "Habilitar ventilação do banco ao ligar o ar-condicionado"),
 }

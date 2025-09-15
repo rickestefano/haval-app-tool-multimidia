@@ -64,6 +64,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -317,6 +319,9 @@ fun BasicSettingsTab() {
     var nightEndMinute by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.NIGHT_END_MINUTE.key, 0)) }
     var disableBluetoothOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.key, false)) }
     var disableHotspotOnPowerOff by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.key, false)) }
+    var nightBrightnessLevel by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_NIGHT.key, 1)) }
+    var dayBrightnessLevel by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_DAY.key, 10)) }
+    var enableSeatVentilationOnAcOn by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.key, false)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
@@ -454,6 +459,15 @@ fun BasicSettingsTab() {
                 }
             ),
             SettingItem(
+                title = "Ligar ventilação dos banco com A/C ligado",
+                description = SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.description,
+                checked = enableSeatVentilationOnAcOn,
+                onCheckedChange = {
+                    enableSeatVentilationOnAcOn = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.key, it) }
+                }
+            ),
+            SettingItem(
                 title = "Desligar bluetooth ao desligar",
                 description = SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.description,
                 checked = disableBluetoothOnPowerOff,
@@ -472,7 +486,7 @@ fun BasicSettingsTab() {
                 }
             ),
             SettingItem(
-                title = "Ativar modo noturno automático",
+                title = "Ajustar brilho automaticamente",
                 description = "Ajusta o brilho da tela automaticamente",
                 checked = enableAutoBrightness,
                 onCheckedChange = {
@@ -552,6 +566,54 @@ fun BasicSettingsTab() {
                                         )
                                     }
                                 }
+                            }
+
+                            // Slider para nível de brilho diurno
+                            Column {
+                                Text("Nível de brilho diurno: $dayBrightnessLevel", color = Color.White, fontSize = 14.sp)
+                                Slider(
+                                    value = dayBrightnessLevel.toFloat(),
+                                    onValueChange = { newValue ->
+                                        dayBrightnessLevel = newValue.toInt()
+                                        prefs.edit { putInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_DAY.key, dayBrightnessLevel) }
+                                    },
+                                    valueRange = 1f..10f,
+                                    steps = 9,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = AppColors.Primary,
+                                        activeTrackColor = AppColors.Primary,
+                                        inactiveTrackColor = Color(0xFF2C3139),
+                                        activeTickColor = Color.Transparent,
+                                        inactiveTickColor = Color.Transparent,
+                                        disabledThumbColor = AppColors.Primary,
+                                        disabledActiveTrackColor = AppColors.Primary,
+                                        disabledInactiveTrackColor = Color(0xFF2C3139)
+                                    )
+                                )
+                            }
+
+                            // Slider para nível de brilho noturno
+                            Column {
+                                Text("Nível de brilho noturno: $nightBrightnessLevel", color = Color.White, fontSize = 14.sp)
+                                Slider(
+                                    value = nightBrightnessLevel.toFloat(),
+                                    onValueChange = { newValue ->
+                                        nightBrightnessLevel = newValue.toInt()
+                                        prefs.edit { putInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_NIGHT.key, nightBrightnessLevel) }
+                                    },
+                                    valueRange = 1f..10f,
+                                    steps = 9,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = AppColors.Primary,
+                                        activeTrackColor = AppColors.Primary,
+                                        inactiveTrackColor = Color(0xFF2C3139),
+                                        activeTickColor = Color.Transparent,
+                                        inactiveTickColor = Color.Transparent,
+                                        disabledThumbColor = AppColors.Primary,
+                                        disabledActiveTrackColor = AppColors.Primary,
+                                        disabledInactiveTrackColor = Color(0xFF2C3139)
+                                    )
+                                )
                             }
                         }
                     }
