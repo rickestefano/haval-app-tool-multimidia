@@ -57,6 +57,7 @@ import br.com.redesurftank.havalshisuku.models.CarInfo;
 import br.com.redesurftank.havalshisuku.models.ServiceManagerEventType;
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys;
 import br.com.redesurftank.havalshisuku.models.SteeringWheelAcControlType;
+import br.com.redesurftank.havalshisuku.models.SteeringWheelCustomActionType;
 import br.com.redesurftank.havalshisuku.utils.FridaUtils;
 import br.com.redesurftank.havalshisuku.utils.ShizukuUtils;
 import rikka.shizuku.Shizuku;
@@ -290,7 +291,6 @@ public class ServiceManager {
             clusterCallback = new IClusterCallback.Stub() {
                 @Override
                 public void callbackMsg(int msgId, ClusterMsgData data) {
-                    Log.w(TAG, "Cluster message received: " + msgId + ", data: " + data);
                     if (msgId == 133) {
                         int whichCard = data.getIntValue();
                         clusterCardView = whichCard;
@@ -355,7 +355,17 @@ public class ServiceManager {
             inputListener = new IInputListener.Stub() {
                 @Override
                 public void dispatchKeyEvent(KeyEvent keyEvent) {
-                    Log.w(TAG, "Key event received: " + keyEvent);
+                    if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_STEERING_WHEEL_CUSTOM_BUTTONS.getKey(), false)) {
+                        Log.w(TAG, "Key event received: " + keyEvent);
+                        switch (keyEvent.getKeyCode()) {
+                            case 517://button 1
+                                handleSteeringWheelCustomButton(sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION.getKey(), SteeringWheelCustomActionType.DEFAULT.name()), 1);
+                                break;
+                            case 1031://button 2
+                                handleSteeringWheelCustomButton(sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION.getKey(), SteeringWheelCustomActionType.DEFAULT.name()), 2);
+                                break;
+                        }
+                    }
                     if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_AC_CONTROL_VIA_STEERING_WHEEL.getKey(), false)) {
                         if (clusterCardView == 1) {
                             switch (keyEvent.getKeyCode()) {
@@ -551,6 +561,7 @@ public class ServiceManager {
             if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.getKey(), false) && getUpdatedData(CarConstants.CAR_HVAC_POWER_MODE.getValue()).equals("1")) {
                 updateData(CarConstants.CAR_COMFORT_SETTING_DRIVER_SEAT_VENTILATION_LEVEL.getValue(), "3");
             }
+            ensureSteeringWheelButtonIntegration();
             ensureSystemApps();
 
             servicesInitialized = true;
@@ -567,6 +578,153 @@ public class ServiceManager {
         } catch (RemoteException e) {
             Log.e(TAG, "Error during initialization", e);
             return false;
+        }
+    }
+
+    public void ensureSteeringWheelButtonIntegration() {
+        if (sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_STEERING_WHEEL_CUSTOM_BUTTONS.getKey(), false)) {
+            var button1Action = sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION.getKey(), SteeringWheelCustomActionType.DEFAULT.getKey());
+            var button2Action = sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION.getKey(), SteeringWheelCustomActionType.DEFAULT.getKey());
+            Log.w(TAG, "Ensuring steering wheel button integration. Button 1 action: " + button1Action + ", Button 2 action: " + button2Action);
+            if (button1Action.equals(SteeringWheelCustomActionType.DEFAULT.getKey())) {
+                disableNativeSteeringWheelButton1();
+            } else {
+                enableSteeringWheelButton1Integration();
+            }
+            if (button2Action.equals(SteeringWheelCustomActionType.DEFAULT.getKey())) {
+                disableNativeSteeringWheelButton2();
+            } else {
+                enableSteeringWheelButton2Integration();
+            }
+        } else {
+            Log.w(TAG, "Steering wheel button integration disabled, restoring native functions");
+            disableNativeSteeringWheelButton1();
+            disableNativeSteeringWheelButton2();
+        }
+
+    }
+
+    private void handleSteeringWheelCustomButton(String string, int button) {
+        SteeringWheelCustomActionType action = SteeringWheelCustomActionType.Companion.fromKey(string);
+        if (action == null || action == SteeringWheelCustomActionType.DEFAULT) {
+            return;
+        }
+        switch (action) {
+            case CHANGE_POWER_MODE:
+                var carEvPowerMode = Integer.parseInt(getUpdatedData(CarConstants.CAR_EV_SETTING_POWER_MODEL_CONFIG.getValue()));
+                Log.w(TAG, "Current EV Power Mode: " + carEvPowerMode);
+                if (carEvPowerMode == 0) {
+                    carEvPowerMode = 1;
+                } else if (carEvPowerMode == 1) {
+                    carEvPowerMode = 3;
+                } else if (carEvPowerMode == 3) {
+                    carEvPowerMode = 0;
+                }
+                updateData(CarConstants.CAR_EV_SETTING_POWER_MODEL_CONFIG.getValue(), String.valueOf(carEvPowerMode));
+                Log.w(TAG, "New EV Power Mode: " + carEvPowerMode);
+                break;
+            case CHANGE_REGENERATION_LEVEL:
+                var regenLevel = Integer.parseInt(getUpdatedData(CarConstants.CAR_EV_SETTING_ENERGY_RECOVERY_LEVEL.getValue()));
+                Log.w(TAG, "Current Regeneration Level: " + regenLevel);
+                //low 2
+                //normal 0
+                //high 1
+                if (regenLevel == 0) {
+                    regenLevel = 1;
+                } else if (regenLevel == 1) {
+                    regenLevel = 2;
+                } else if (regenLevel == 2) {
+                    regenLevel = 0;
+                }
+                updateData(CarConstants.CAR_EV_SETTING_ENERGY_RECOVERY_LEVEL.getValue(), String.valueOf(regenLevel));
+                Log.w(TAG, "New Regeneration Level: " + regenLevel);
+                break;
+            case TOGGLE_ANION:
+                var anionState = getUpdatedData(CarConstants.CAR_HVAC_ANION_ENABLE.getValue());
+                if (anionState != null) {
+                    boolean anion = anionState.equals("1");
+                    anion = !anion;
+                    updateData(CarConstants.CAR_HVAC_ANION_ENABLE.getValue(), anion ? "1" : "0");
+                    Log.w(TAG, "Anion state changed to: " + anion);
+                }
+                break;
+            /*case TOGGLE_ESP:
+                var espState = getUpdatedData(CarConstants.CAR_DRIVE_SETTING_ESP_ENABLE.getValue());
+                if (espState != null) {
+                    boolean esp = espState.equals("1");
+                    esp = !esp;
+                    updateData(CarConstants.CAR_DRIVE_SETTING_ESP_ENABLE.getValue(), esp ? "1" : "0");
+                    Log.w(TAG, "ESP state changed to: " + esp);
+                }
+                break;*/
+            case TOGGLE_ONE_PEDAL_DRIVING:
+                var onePedalState = getUpdatedData(CarConstants.CAR_CONFIGURE_PEDAL_CONTROL_ENABLE.getValue());
+                if (onePedalState != null) {
+                    boolean onePedal = onePedalState.equals("1");
+                    onePedal = !onePedal;
+                    updateData(CarConstants.CAR_CONFIGURE_PEDAL_CONTROL_ENABLE.getValue(), onePedal ? "1" : "0");
+                    Log.w(TAG, "One Pedal Driving state changed to: " + onePedal);
+                }
+                break;
+            case OPEN_APP:
+                var packageName = sharedPreferences.getString(button == 1 ? SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_1.getKey() : SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_2.getKey(), "");
+                if (!packageName.isEmpty()) {
+                    Intent launchIntent = App.getContext().getPackageManager().getLaunchIntentForPackage(packageName);
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        App.getContext().startActivity(launchIntent);
+                        Log.w(TAG, "Launching app: " + packageName);
+                    } else {
+                        Log.e(TAG, "App not found: " + packageName);
+                    }
+                }
+                break;
+        }
+    }
+
+    public void enableSteeringWheelButton1Integration() {
+        try {
+            var currentConfig = ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "get", "system", "bean_sw_custom_key1_config"}).trim();
+            Log.w(TAG, "Current steering wheel button 1 config: " + currentConfig);
+            sharedPreferences.edit().putString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION_ORIGINAL.getKey(), currentConfig).apply();
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "put", "system", "bean_sw_custom_key1_config", "99"});
+        } catch (Exception e) {
+            Log.e(TAG, "Error disabling native steering wheel custom buttons", e);
+        }
+    }
+
+    public void enableSteeringWheelButton2Integration() {
+        try {
+            var currentConfig = ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "get", "system", "bean_sw_custom_key2_config"}).trim();
+            Log.w(TAG, "Current steering wheel button 2 config: " + currentConfig);
+            sharedPreferences.edit().putString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION_ORIGINAL.getKey(), currentConfig).apply();
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "put", "system", "bean_sw_custom_key2_config", "99"});
+        } catch (Exception e) {
+            Log.e(TAG, "Error disabling native steering wheel custom buttons", e);
+        }
+    }
+
+    public void disableNativeSteeringWheelButton1() {
+        try {
+            var originalConfig = sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION_ORIGINAL.getKey(), "0");
+            if (originalConfig.equals("99"))
+                return;
+            Log.w(TAG, "Restoring steering wheel button 1 config to: " + originalConfig);
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "put", "system", "bean_sw_custom_key1_config", originalConfig});
+        } catch (Exception e) {
+            Log.e(TAG, "Error restoring native steering wheel custom button 1", e);
+        }
+    }
+
+    public void disableNativeSteeringWheelButton2() {
+        try {
+            var originalConfig = sharedPreferences.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION_ORIGINAL.getKey(), "0");
+            if (originalConfig.equals("99"))
+                return;
+            Log.w(TAG, "Restoring steering wheel button 2 config to: " + originalConfig);
+            ShizukuUtils.runCommandAndGetOutput(new String[]{"settings", "put", "system", "bean_sw_custom_key2_config", originalConfig});
+        } catch (Exception e) {
+            Log.e(TAG, "Error restoring native steering wheel custom button 2", e);
         }
     }
 
@@ -834,8 +992,8 @@ public class ServiceManager {
                 if ((value.equals("-1") || value.equals("0"))) {
                     boolean disableBluetoothOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_BLUETOOTH_ON_POWER_OFF.getKey(), false);
                     boolean currentBluetoothState = currentBluetoothState();
-                    sharedPreferences.edit().putBoolean(SharedPreferencesKeys.BLUETOOTH_STATE_ON_POWER_OFF.getKey(), currentBluetoothState).apply();
                     if (currentBluetoothState && disableBluetoothOnPowerOff) {
+                        sharedPreferences.edit().putBoolean(SharedPreferencesKeys.BLUETOOTH_STATE_ON_POWER_OFF.getKey(), true).apply();
                         disableBluetooth();
                     }
                     boolean disableHotspotOnPowerOff = sharedPreferences.getBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.getKey(), false);
@@ -851,6 +1009,8 @@ public class ServiceManager {
                 }
             } else if (key.equals(CarConstants.CAR_HVAC_POWER_MODE.getValue()) && value.equals("1") && sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.getKey(), false)) {
                 updateData(CarConstants.CAR_COMFORT_SETTING_DRIVER_SEAT_VENTILATION_LEVEL.getValue(), "3");
+            } else if (key.equals(CarConstants.CAR_HVAC_POWER_MODE.getValue()) && value.equals("0") && sharedPreferences.getBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.getKey(), false)) {
+                updateData(CarConstants.CAR_COMFORT_SETTING_DRIVER_SEAT_VENTILATION_LEVEL.getValue(), "0");
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in OnDataChanged", e);

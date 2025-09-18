@@ -59,7 +59,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -108,6 +111,7 @@ import br.com.redesurftank.havalshisuku.managers.ServiceManager
 import br.com.redesurftank.havalshisuku.models.AppInfo
 import br.com.redesurftank.havalshisuku.models.CarConstants
 import br.com.redesurftank.havalshisuku.models.SharedPreferencesKeys
+import br.com.redesurftank.havalshisuku.models.SteeringWheelCustomActionType
 import br.com.redesurftank.havalshisuku.ui.components.AppColors
 import br.com.redesurftank.havalshisuku.ui.components.AppDimensions
 import br.com.redesurftank.havalshisuku.ui.components.SettingCard
@@ -290,6 +294,7 @@ data class DrawerMenuItem(
     val icon: ImageVector
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BasicSettingsTab() {
     val context = LocalContext.current
@@ -322,6 +327,7 @@ fun BasicSettingsTab() {
     var nightBrightnessLevel by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_NIGHT.key, 1)) }
     var dayBrightnessLevel by remember { mutableIntStateOf(prefs.getInt(SharedPreferencesKeys.AUTO_BRIGHTNESS_LEVEL_DAY.key, 10)) }
     var enableSeatVentilationOnAcOn by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.key, false)) }
+    var enableCustomSteeringWheelButtons by remember { mutableStateOf(prefs.getBoolean(SharedPreferencesKeys.ENABLE_STEERING_WHEEL_CUSTOM_BUTTONS.key, false)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
@@ -459,7 +465,7 @@ fun BasicSettingsTab() {
                 }
             ),
             SettingItem(
-                title = "Ligar ventilação dos banco com A/C ligado",
+                title = "Ligar ventilação do banco do motorisca com A/C ligado",
                 description = SharedPreferencesKeys.ENABLE_SEAT_VENTILATION_ON_AC_ON.description,
                 checked = enableSeatVentilationOnAcOn,
                 onCheckedChange = {
@@ -484,6 +490,132 @@ fun BasicSettingsTab() {
                     disableHotspotOnPowerOff = it
                     prefs.edit { putBoolean(SharedPreferencesKeys.DISABLE_HOTSPOT_ON_POWER_OFF.key, it) }
                 }
+            ),
+            SettingItem(
+                title = "Habilitar botões personalizados no volante",
+                description = SharedPreferencesKeys.ENABLE_STEERING_WHEEL_CUSTOM_BUTTONS.description,
+                checked = enableCustomSteeringWheelButtons,
+                onCheckedChange = {
+                    enableCustomSteeringWheelButtons = it
+                    prefs.edit { putBoolean(SharedPreferencesKeys.ENABLE_STEERING_WHEEL_CUSTOM_BUTTONS.key, it) }
+                    ServiceManager.getInstance().ensureSteeringWheelButtonIntegration()
+                },
+                customContent = if (enableCustomSteeringWheelButtons) {
+                    {
+                        var action1 by remember { mutableStateOf(prefs.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION.key, SteeringWheelCustomActionType.DEFAULT.key)!!) }
+                        var action2 by remember { mutableStateOf(prefs.getString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION.key, SteeringWheelCustomActionType.DEFAULT.key)!!) }
+                        var package1 by remember { mutableStateOf(prefs.getString(SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_1.key, "")!!) }
+                        var package2 by remember { mutableStateOf(prefs.getString(SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_2.key, "")!!) }
+                        var expanded1 by remember { mutableStateOf(false) }
+                        var expanded2 by remember { mutableStateOf(false) }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HorizontalDivider(color = Color(0xFF3A3F47), thickness = 1.dp)
+
+                            Text("Botão 1", color = Color.White, fontSize = 16.sp)
+                            ExposedDropdownMenuBox(
+                                expanded = expanded1,
+                                onExpandedChange = { expanded1 = !expanded1 }
+                            ) {
+                                TextField(
+                                    value = SteeringWheelCustomActionType.entries.find { it.key == action1 }?.description ?: "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Tipo de Ação") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded1) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded1,
+                                    onDismissRequest = { expanded1 = false }
+                                ) {
+                                    SteeringWheelCustomActionType.entries.forEach { type ->
+                                        DropdownMenuItem(
+                                            text = { Text(type.description) },
+                                            onClick = {
+                                                action1 = type.key
+                                                prefs.edit { putString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_1_ACTION.key, type.key) }
+                                                expanded1 = false
+                                                ServiceManager.getInstance().ensureSteeringWheelButtonIntegration()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (action1 == SteeringWheelCustomActionType.OPEN_APP.key) {
+                                TextField(
+                                    value = package1,
+                                    onValueChange = { newPkg ->
+                                        package1 = newPkg
+                                        prefs.edit { putString(SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_1.key, newPkg) }
+                                    },
+                                    label = { Text("Pacote do App") },
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF2A2F37),
+                                        unfocusedContainerColor = Color(0xFF2A2F37),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color(0xFFB0B8C4),
+                                        focusedIndicatorColor = Color(0xFF4A9EFF),
+                                        unfocusedIndicatorColor = Color(0xFF3A3F47)
+                                    )
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFF3A3F47), thickness = 1.dp)
+
+                            Text("Botão 2", color = Color.White, fontSize = 16.sp)
+                            ExposedDropdownMenuBox(
+                                expanded = expanded2,
+                                onExpandedChange = { expanded2 = !expanded2 }
+                            ) {
+                                TextField(
+                                    value = SteeringWheelCustomActionType.entries.find { it.key == action2 }?.description ?: "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Tipo de Ação") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded2) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded2,
+                                    onDismissRequest = { expanded2 = false }
+                                ) {
+                                    SteeringWheelCustomActionType.entries.forEach { type ->
+                                        DropdownMenuItem(
+                                            text = { Text(type.description) },
+                                            onClick = {
+                                                action2 = type.key
+                                                prefs.edit { putString(SharedPreferencesKeys.STEERING_WHEEL_CUSTOM_BUTON_2_ACTION.key, type.key) }
+                                                expanded2 = false
+                                                ServiceManager.getInstance().ensureSteeringWheelButtonIntegration()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (action2 == SteeringWheelCustomActionType.OPEN_APP.key) {
+                                TextField(
+                                    value = package2,
+                                    onValueChange = { newPkg ->
+                                        package2 = newPkg
+                                        prefs.edit { putString(SharedPreferencesKeys.STEERING_WHEEL_OPEN_APP_PACKAGE_BUTTON_2.key, newPkg) }
+                                    },
+                                    label = { Text("Pacote do App") },
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF2A2F37),
+                                        unfocusedContainerColor = Color(0xFF2A2F37),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color(0xFFB0B8C4),
+                                        focusedIndicatorColor = Color(0xFF4A9EFF),
+                                        unfocusedIndicatorColor = Color(0xFF3A3F47)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } else null
             ),
             SettingItem(
                 title = "Ajustar brilho automaticamente",
