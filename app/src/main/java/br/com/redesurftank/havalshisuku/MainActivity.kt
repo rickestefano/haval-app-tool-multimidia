@@ -2064,7 +2064,8 @@ fun InformacoesTab() {
                                 if (latest != null && dlUrl != null) {
                                     val currentClean = version.removePrefix("v")
                                     val latestClean = latest.removePrefix("v")
-                                    if (compareVersions(latestClean, currentClean) > 0) {
+                                    // Se a versão atual for 99.99, sempre permitir instalação da versão mais recente
+                                    if (currentClean == "99.99" || compareVersions(latestClean, currentClean) > 0) {
                                         latestVersion = latest
                                         downloadUrl = dlUrl
                                         updateAvailable = true
