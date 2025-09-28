@@ -127,7 +127,7 @@ fun SplashScreen(onComplete: () -> Unit) {
             // IMPULSE Text
             Text(
                 stringResource(R.string.app_splash_subtitle),
-                color = Color(0xFF4A9EFF),
+                color = Color(0xFFFF0000),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Light,
                 letterSpacing = 12.sp
