@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddBox
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DeveloperMode
 import androidx.compose.material.icons.filled.Info
@@ -145,6 +146,15 @@ import java.util.Locale
 import kotlin.math.min
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
+// Para o Speedometer
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.TextUnit
+import kotlin.math.cos
+import kotlin.math.sin
+
 const val TAG = "HavalShisuku"
 
 class MainActivity : ComponentActivity() {
@@ -173,6 +183,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
         add(DrawerMenuItem("Valores Atuais", Icons.Default.DeveloperMode))
         add(DrawerMenuItem("Instalar Apps", Icons.Default.ShoppingCart))
         add(DrawerMenuItem("Informações", Icons.Default.Info))
+        add(DrawerMenuItem("Testes Rick", Icons.Default.AddBox))
         if (advancedUse) {
             add(DrawerMenuItem("Frida Hooks", Icons.Default.Build))
         }
@@ -284,7 +295,8 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     2 -> CurrentValuesTab()
                     3 -> InstallAppsTab()
                     4 -> InformacoesTab()
-                    5 -> FridaHooksTab()
+                    5 -> RickTestsTab()
+                    6 -> FridaHooksTab()
                 }
             }
         }
@@ -817,6 +829,125 @@ fun BasicSettingsTab() {
         }
     }
 }
+
+
+@Composable
+fun RickTestsTab() {// 1. Estados para armazenar e observar os valores
+    var batteryLevel by remember { mutableStateOf<String?>(null) }
+    var batteryVoltage by remember { mutableStateOf<String?>(null) }
+    var vehicleSpeed by remember { mutableStateOf("100") } // Inicia com "0"
+
+    // 2. DisposableEffect para gerenciar o listener de forma segura
+    DisposableEffect(Unit) {
+        val serviceManager = ServiceManager.getInstance()
+
+        // Busca os valores iniciais assim que o componente é exibido
+        batteryLevel = serviceManager.getData(CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value)
+        batteryVoltage = serviceManager.getData(CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value)
+        serviceManager.getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.value)?.let {
+            vehicleSpeed = it
+        }
+
+        // Cria o listener que será chamado sempre que um dado for atualizado
+        val listener = IDataChanged { key, value ->
+            when (key) {
+                CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value -> batteryLevel = value
+                CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value -> batteryVoltage = value
+                CarConstants.CAR_BASIC_VEHICLE_SPEED.value -> vehicleSpeed = value
+            }
+        }
+
+        // Adiciona o listener ao ServiceManager
+        serviceManager.addDataChangedListener(listener)
+
+        // 3. onDispose é chamado quando a aba é trocada, removendo o listener
+        onDispose {
+            serviceManager.removeDataChangedListener(listener)
+        }
+    }
+
+    // 4. Interface do usuário para exibir os valores
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, // Centraliza os itens
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    StyledCard {
+                        Column(
+                            modifier = Modifier
+                                .padding(20.dp)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Dados da Bateria em Tempo Real",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextPrimary
+                            )
+
+                            HorizontalDivider(color = Color(0xFF1D2430))
+
+                            // Exibição do Nível da Bateria
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Nível da Bateria:", color = Color(0xFFB0B8C4), fontSize = 18.sp)
+                                Text(
+                                    text = if (batteryLevel != null) "$batteryLevel%" else "Carregando...",
+                                    color = AppColors.TextPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // Exibição da Voltagem da Bateria
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Voltagem da Bateria:", color = Color(0xFFB0B8C4), fontSize = 18.sp)
+                                Text(
+                                    text = if (batteryVoltage != null) {
+                                        val voltageFloat = batteryVoltage?.toFloatOrNull()
+                                        if (voltageFloat != null) {
+                                            String.format("%.1f V", voltageFloat) // Formata para 1 casa decimal
+                                        } else {
+                                            "$batteryVoltage V"
+                                        }
+                                    } else {
+                                        "Carregando..."
+                                    },
+                                    color = AppColors.TextPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Item para o velocímetro
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Speedometer(
+                        speed = vehicleSpeed.toFloatOrNull() ?: 0f,
+                        modifier = Modifier
+                            .fillMaxWidth(0.3f) // Ocupa 80% da largura
+                            .aspectRatio(1f) // Mantém a proporção quadrada
+                    )
+                }
+            }
+}
+
+
 
 @Composable
 fun FridaHooksTab() {
@@ -2317,3 +2448,118 @@ fun MainScreenPreview() {
         MainScreen()
     }
 }
+
+
+@Composable
+fun Speedometer(
+    speed: Float,
+    modifier: Modifier = Modifier,
+    maxSpeed: Int = 220,
+    fontSize: TextUnit = 64.sp
+) {
+    val animatedSpeed by animateFloatAsState(
+        targetValue = speed,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "speedAnimation"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = this.center
+            val radius = size.minDimension / 2f - 35.dp.toPx() // Abrir espaço para os labels
+            val startAngle = 135f
+            val sweepAngle = 270f
+
+            // Desenha o arco de fundo
+            drawArc(
+                color = Color(0xFF2A2F37),
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // Desenha o arco do progresso (velocidade)
+            val speedProgressAngle = (animatedSpeed / maxSpeed).coerceIn(0f, 1f) * sweepAngle
+            drawArc(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFF4A9EFF), Color(0xFFEF4444)),
+                    start = Offset(center.x - radius, center.y),
+                    end = Offset(center.x + radius, center.y)
+                ),
+                startAngle = startAngle,
+                sweepAngle = speedProgressAngle,
+                useCenter = false,
+                style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // --- Ponteiro Vermelho ---
+            val pointerAngleRad = Math.toRadians((startAngle + speedProgressAngle).toDouble())
+            val pointerLength = radius + 5.dp.toPx()
+            val pointerStartOffset = 15.dp.toPx()
+            val startX = center.x + pointerStartOffset * cos(pointerAngleRad).toFloat()
+            val startY = center.y + pointerStartOffset * sin(pointerAngleRad).toFloat()
+            val endX = center.x + pointerLength * cos(pointerAngleRad).toFloat()
+            val endY = center.y + pointerLength * sin(pointerAngleRad).toFloat()
+
+            drawLine(
+                color = Color(0xFFEF4444), // Vermelho
+                start = Offset(startX, startY),
+                end = Offset(endX, endY),
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawCircle(
+                color = Color(0xFFEF4444), // Pivô vermelho
+                radius = 10.dp.toPx(),
+                center = center
+            )
+            drawCircle( // Miolo branco para detalhe
+                color = Color.White,
+                radius = 4.dp.toPx(),
+                center = center
+            )
+            // --- Fim do Ponteiro ---
+
+            // Desenha as marcações de texto (0, 20, 40...)
+            val textPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.WHITE
+                textAlign = android.graphics.Paint.Align.CENTER
+                textSize = 16.sp.toPx()
+                isAntiAlias = true
+            }
+            for (i in 0..maxSpeed step 20) {
+                // CORREÇÃO do ângulo para os labels
+                val angleRad = Math.toRadians((startAngle + (i.toFloat() / maxSpeed) * sweepAngle).toDouble())
+                val labelRadius = radius + 30.dp.toPx()
+                val x = center.x + labelRadius * cos(angleRad).toFloat()
+                val y = center.y + labelRadius * sin(angleRad).toFloat() + (textPaint.textSize / 3)
+
+                drawContext.canvas.nativeCanvas.drawText(i.toString(), x, y, textPaint)
+            }
+        }
+
+        // Texto central com a velocidade
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "%.0f".format(animatedSpeed),
+                color = AppColors.TextPrimary,
+                fontSize = fontSize,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "km/h",
+                color = Color(0xFFB0B8C4),
+                fontSize = (fontSize.value / 3).sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+}
+
+

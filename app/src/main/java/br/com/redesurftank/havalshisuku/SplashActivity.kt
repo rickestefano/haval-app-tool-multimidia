@@ -61,7 +61,7 @@ fun SplashScreen(onComplete: () -> Unit) {
         // Simulate loading
         for (i in 1..100) {
             progress = i / 100f
-            delay(30) // 3 seconds total
+            delay(1) // 3 seconds total (era 30)
         }
         onComplete()
     }
@@ -69,7 +69,7 @@ fun SplashScreen(onComplete: () -> Unit) {
     // Dots animation
     LaunchedEffect(Unit) {
         while (true) {
-            delay(500)
+            delay(5) // (era 500)
             showDots = !showDots
         }
     }
