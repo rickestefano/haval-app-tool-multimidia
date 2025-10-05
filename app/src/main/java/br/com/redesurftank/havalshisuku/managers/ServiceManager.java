@@ -104,7 +104,19 @@ public class ServiceManager {
             CarConstants.SYS_SETTINGS_DISPLAY_BACKLIGHT_STATE,
             CarConstants.SYS_SETTINGS_DISPLAY_BRIGHTNESS_LEVEL,
             CarConstants.CAR_DRIVE_SETTING_OUTSIDE_VIEW_MIRROR_FOLD_STATE,
-            CarConstants.CAR_BASIC_ENGINE_STATE
+            CarConstants.CAR_BASIC_ENGINE_SPEED, // Adicionado a partir daqui
+            CarConstants.CAR_BASIC_ENGINE_STATE,
+            CarConstants.CAR_EV_INFO_MOTOR_POWER,
+            CarConstants.CAR_EV_INFO_MOTOR_SPEED,
+            CarConstants.CAR_BASIC_HEAD_LIGHT_STATUS,
+            CarConstants.CAR_COMFORT_SETTING_FRONT_WIPER_WORK_INTERVAL,
+            CarConstants.CAR_BASIC_INSTANT_FUEL_CONSUMPTION,
+            CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE,
+            CarConstants.CAR_EV_INFO_ENERGY_OUTPUT_PERCENTAGE,
+            CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE,
+            CarConstants.CAR_EV_INFO_CAR_EV_INFO_SOC_OF_BATTERY,
+            CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_LEVEL,
+            CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_RANGE
     };
 
     private static final CarConstants[] KEYS_TO_SAVE = {

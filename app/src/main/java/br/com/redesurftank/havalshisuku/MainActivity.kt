@@ -155,6 +155,9 @@ import androidx.compose.ui.unit.TextUnit
 import kotlin.math.cos
 import kotlin.math.sin
 
+import android.os.Handler
+import android.os.Looper
+
 const val TAG = "HavalShisuku"
 
 class MainActivity : ComponentActivity() {
@@ -830,123 +833,209 @@ fun BasicSettingsTab() {
     }
 }
 
+// AQUI COMEÇA A VERSÃO 2.0
 
+// Adicione esta data class e o Composable abaixo no seu arquivo, antes da RickTestsTab
+
+// Data class para simplificar a exibição dos itens na grade
+data class CarDataItem(val label: String, val value: String?)
+
+// Composable auxiliar para exibir um item da grade de dados
 @Composable
-fun RickTestsTab() {// 1. Estados para armazenar e observar os valores
-    var batteryLevel by remember { mutableStateOf<String?>(null) }
-    var batteryVoltage by remember { mutableStateOf<String?>(null) }
-    var vehicleSpeed by remember { mutableStateOf("100") } // Inicia com "0"
+fun DataGridItem(item: CarDataItem) {
+    StyledCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = item.label,
+                color = Color(0xFFB0B8C4),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = item.value ?: "---",
+                color = AppColors.TextPrimary,
+                fontSize = 20.sp, // Um pouco maior para o valor
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
 
-    // 2. DisposableEffect para gerenciar o listener de forma segura
+// Substitua sua função RickTestsTab por esta
+@Composable
+fun RickTestsTab() {
+    // Estados para as variáveis, inicializados com valores padrão
+    var vehicleSpeed by remember { mutableStateOf("0") }
+    var engineSpeed by remember { mutableStateOf("---") }
+    var engineState by remember { mutableStateOf("---") }
+    var motorPower by remember { mutableStateOf("---") }
+    var motorSpeed by remember { mutableStateOf("---") }
+    var outsideTemp by remember { mutableStateOf("---") }
+    var insideTemp by remember { mutableStateOf("---") }
+    var headLightStatus by remember { mutableStateOf("---") }
+    var wiperInterval by remember { mutableStateOf("---") }
+    var instantFuelConsumption by remember { mutableStateOf("---") }
+    var batteryPerc by remember { mutableStateOf("0") }
+    var energyOutputPerc by remember { mutableStateOf("0") }
+    var batteryVoltage by remember { mutableStateOf("0.0") }
+    var socBattery by remember { mutableStateOf("---") }
+    var economicGuideLevel by remember { mutableStateOf("---") }
+    var economicGuideRange by remember { mutableStateOf("---") }
+
+    // Estado para a data e hora do sistema
+    var systemDateTime by remember {
+        mutableStateOf(
+            SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Calendar.getInstance().time)
+        )
+    }
+
+    // DisposableEffect para gerenciar os listeners e a atualização da data/hora
     DisposableEffect(Unit) {
         val serviceManager = ServiceManager.getInstance()
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
-        // Busca os valores iniciais assim que o componente é exibido
-        batteryLevel = serviceManager.getData(CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value)
-        batteryVoltage = serviceManager.getData(CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value)
-        serviceManager.getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.value)?.let {
-            vehicleSpeed = it
-        }
-
-        // Cria o listener que será chamado sempre que um dado for atualizado
-        val listener = IDataChanged { key, value ->
-            when (key) {
-                CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value -> batteryLevel = value
-                CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value -> batteryVoltage = value
-                CarConstants.CAR_BASIC_VEHICLE_SPEED.value -> vehicleSpeed = value
+        // Runnable para atualizar a data e hora a cada segundo
+        val updateTimeRunnable = object : Runnable {
+            override fun run() {
+                systemDateTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Calendar.getInstance().time)
+                handler.postDelayed(this, 1000)
             }
         }
+        handler.post(updateTimeRunnable)
 
-        // Adiciona o listener ao ServiceManager
+        // Busca os valores iniciais
+        vehicleSpeed = serviceManager.getData(CarConstants.CAR_BASIC_VEHICLE_SPEED.value) ?: "0"
+        engineSpeed = serviceManager.getData(CarConstants.CAR_BASIC_ENGINE_SPEED.value) ?: "---"
+        engineState = serviceManager.getData(CarConstants.CAR_BASIC_ENGINE_STATE.value) ?: "---"
+        motorPower = serviceManager.getData(CarConstants.CAR_EV_INFO_MOTOR_POWER.value) ?: "---"
+        motorSpeed = serviceManager.getData(CarConstants.CAR_EV_INFO_MOTOR_SPEED.value) ?: "---"
+        outsideTemp = serviceManager.getData(CarConstants.CAR_BASIC_OUTSIDE_TEMP.value) ?: "---"
+        insideTemp = serviceManager.getData(CarConstants.CAR_BASIC_INSIDE_TEMP.value) ?: "---"
+        headLightStatus = serviceManager.getData(CarConstants.CAR_BASIC_HEAD_LIGHT_STATUS.value) ?: "---"
+        wiperInterval = serviceManager.getData(CarConstants.CAR_COMFORT_SETTING_FRONT_WIPER_WORK_INTERVAL.value) ?: "---"
+        instantFuelConsumption = serviceManager.getData(CarConstants.CAR_BASIC_INSTANT_FUEL_CONSUMPTION.value) ?: "---"
+        batteryPerc = serviceManager.getData(CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value) ?: "0"
+        energyOutputPerc = serviceManager.getData(CarConstants.CAR_EV_INFO_ENERGY_OUTPUT_PERCENTAGE.value) ?: "0"
+        batteryVoltage = serviceManager.getData(CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value) ?: "0.0"
+        socBattery = serviceManager.getData(CarConstants.CAR_EV_INFO_CAR_EV_INFO_SOC_OF_BATTERY.value) ?: "---"
+        economicGuideLevel = serviceManager.getData(CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_LEVEL.value) ?: "---"
+        economicGuideRange = serviceManager.getData(CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_RANGE.value) ?: "---"
+
+        val listener = IDataChanged { key, value ->
+            when (key) {
+                CarConstants.CAR_BASIC_VEHICLE_SPEED.value -> vehicleSpeed = value ?: "0"
+                CarConstants.CAR_BASIC_ENGINE_SPEED.value -> engineSpeed = value ?: "---"
+                CarConstants.CAR_BASIC_ENGINE_STATE.value -> engineState = value ?: "---"
+                CarConstants.CAR_EV_INFO_MOTOR_POWER.value -> motorPower = value ?: "---"
+                CarConstants.CAR_EV_INFO_MOTOR_SPEED.value -> motorSpeed = value ?: "---"
+                CarConstants.CAR_BASIC_OUTSIDE_TEMP.value -> outsideTemp = value ?: "---"
+                CarConstants.CAR_BASIC_INSIDE_TEMP.value -> insideTemp = value ?: "---"
+                CarConstants.CAR_BASIC_HEAD_LIGHT_STATUS.value -> headLightStatus = value ?: "---"
+                CarConstants.CAR_COMFORT_SETTING_FRONT_WIPER_WORK_INTERVAL.value -> wiperInterval = value ?: "---"
+                CarConstants.CAR_BASIC_INSTANT_FUEL_CONSUMPTION.value -> instantFuelConsumption = value ?: "---"
+                CarConstants.CAR_EV_INFO_CUR_BATTERY_POWER_PERCENTAGE.value -> batteryPerc = value ?: "0"
+                CarConstants.CAR_EV_INFO_ENERGY_OUTPUT_PERCENTAGE.value -> energyOutputPerc = value ?: "0"
+                CarConstants.CAR_EV_INFO_POWER_BATTERY_VOLTAGE.value -> batteryVoltage = value ?: "0.0"
+                CarConstants.CAR_EV_INFO_CAR_EV_INFO_SOC_OF_BATTERY.value -> socBattery = value ?: "---"
+                CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_LEVEL.value -> economicGuideLevel = value ?: "---"
+                CarConstants.CAR_EV_INFO_ECONOMIC_GUIDE_RANGE.value -> economicGuideRange = value ?: "---"
+            }
+        }
         serviceManager.addDataChangedListener(listener)
 
-        // 3. onDispose é chamado quando a aba é trocada, removendo o listener
         onDispose {
             serviceManager.removeDataChangedListener(listener)
+            handler.removeCallbacks(updateTimeRunnable)
         }
     }
 
-    // 4. Interface do usuário para exibir os valores
+    val dataItems = listOf(
+        CarDataItem("VEL CARRO", vehicleSpeed),
+        CarDataItem("VEL MOTOR", engineSpeed),
+        CarDataItem("STAT MOTOR", engineState),
+        CarDataItem("POT MOTOR", motorPower),
+        CarDataItem("VEL MELET", motorSpeed),
+        CarDataItem("T EXT", outsideTemp),
+        CarDataItem("T INT", insideTemp),
+        CarDataItem("EST HLIGHT", headLightStatus),
+        CarDataItem("INT LIMP", wiperInterval),
+        CarDataItem("CONS INST", instantFuelConsumption),
+        CarDataItem("POT BAT %", batteryPerc),
+        CarDataItem("% EN OUT", energyOutputPerc),
+        CarDataItem("VOLT BAT", batteryVoltage.let { String.format("%.1f V", it.toFloatOrNull() ?: 0f) }),
+        CarDataItem("SOC BAT", socBattery),
+        CarDataItem("ECON LVL", economicGuideLevel),
+        CarDataItem("ECON RNG", economicGuideRange)
+    )
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally, // Centraliza os itens
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    StyledCard {
-                        Column(
-                            modifier = Modifier
-                                .padding(20.dp)
-                                .fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                "Dados da Bateria em Tempo Real",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.TextPrimary
-                            )
-
-                            HorizontalDivider(color = Color(0xFF1D2430))
-
-                            // Exibição do Nível da Bateria
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Nível da Bateria:", color = Color(0xFFB0B8C4), fontSize = 18.sp)
-                                Text(
-                                    text = if (batteryLevel != null) "$batteryLevel%" else "Carregando...",
-                                    color = AppColors.TextPrimary,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            // Exibição da Voltagem da Bateria
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Voltagem da Bateria:", color = Color(0xFFB0B8C4), fontSize = 18.sp)
-                                Text(
-                                    text = if (batteryVoltage != null) {
-                                        val voltageFloat = batteryVoltage?.toFloatOrNull()
-                                        if (voltageFloat != null) {
-                                            String.format("%.1f V", voltageFloat) // Formata para 1 casa decimal
-                                        } else {
-                                            "$batteryVoltage V"
-                                        }
-                                    } else {
-                                        "Carregando..."
-                                    },
-                                    color = AppColors.TextPrimary,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Item para o velocímetro
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Speedometer(
-                        speed = vehicleSpeed.toFloatOrNull() ?: 0f,
-                        modifier = Modifier
-                            .fillMaxWidth(0.3f) // Ocupa 80% da largura
-                            .aspectRatio(1f) // Mantém a proporção quadrada
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Data e Hora do Sistema
+        item {
+            StyledCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = systemDateTime.substringBefore(" "), // Apenas a data
+                        color = AppColors.TextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = systemDateTime.substringAfter(" "), // Apenas a hora
+                        color = AppColors.Primary,
+                        fontSize = 32.sp, // Fonte maior para a hora
+                        fontWeight = FontWeight.ExtraBold
                     )
                 }
             }
-}
+        }
 
+        // Velocímetro
+        item {
+            Speedometer(
+                speed = vehicleSpeed.toFloatOrNull() ?: 0f,
+                modifier = Modifier
+                    .fillMaxWidth(0.3f) // 30% da largura
+                    .aspectRatio(1f)
+            )
+        }
+
+        // Grade de Cartões com as Variáveis
+        item {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().height(
+                    // Altura dinâmica para acomodar todos os cards
+                    (((dataItems.size + 3) / 4) * 120).dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                userScrollEnabled = false // A LazyColumn pai já faz o scroll
+            ) {
+                gridItems(dataItems) { item ->
+                    DataGridItem(item = item)
+                }
+            }
+        }
+    }
+}
 
 
 @Composable
